@@ -85,7 +85,9 @@ internal/
     db/mongodb.go                    MongoDB Connect wrapper (+ integration test)
   adapter/
     middleware/
-      auth_middleware.go              shared auth + logging middleware (Fiber)
+      auth_middleware.go              Bearer JWT auth (Authenticate guard, sentinel errors)
+      log_middleware.go               request logging (method, path, status, duration)
+      recovery_middleware.go          present but unused (server uses Fiber built-in recover)
     inbound/
       http/
         server.go                      Fiber app + compose handlers
@@ -102,7 +104,7 @@ docs/                                   OpenAPI bundle (make docsgen)
 api/
   openapi.yaml                        OpenAPI 3.0.3 spec
   codegen.yaml                        oapi-codegen configuration
-Makefile                               run, test, mock, codegen, docsgen, tools, help
+Makefile                               build, run, test, test-integration, codegen, mock, docsgen, clean, help
 ```
 
 ---
@@ -163,12 +165,14 @@ Tests are pure unit tests (no live MongoDB required):
 | ------- | -------------- |
 | `config/` | YAML loading, env overrides, secret registry, load errors |
 | `internal/infrastructure/db/` | Mongo URI parsing, ping timeout, offline happy path (stubbed) |
-| `internal/application/services/user/` | Use cases against in-memory fakes |
+| `internal/application/services/user/` | Use cases against in-memory fakes + helper tests (`toOutput`, `normalizeEmail`, `validEmail`) |
 | `internal/application/services/statusdb/` | Count use case against generated gomock mock |
 | `internal/adapter/inbound/http/user/` | REST endpoints against a fake service via `app.Test()` |
+| `internal/adapter/inbound/http/helpers/` | `DecodeBody` validation + `WriteServiceError` error mapping |
 | `internal/adapter/inbound/http/health-check/` | Health endpoint |
 | `internal/adapter/outbound/jwt/` | Token generation, validation, expiry, tamper detection |
 | `internal/adapter/outbound/bcrypt/` | Hash & compare behaviour |
+| `internal/adapter/outbound/mongodb/` | Invalid-hex-ID paths (no DB call, nil collection) |
 
 ### Integration tests (opt-in)
 
@@ -187,7 +191,7 @@ TEST_MONGO_URI=mongodb://localhost:27017 go test ./internal/adapter/outbound/mon
 make tools                            # install oapi-codegen + mockgen
 make codegen                          # regenerate server_openapi.gen.go from api/openapi.yaml
 make mock                             # regenerate internal/mocks/ from source interfaces
-make docsgen                          # bundle api/openapi.yaml → docs/
+make docsgen                          # bundle api/openapi.yaml → docs/swagger.{json,yaml}
 ```
 
 ---

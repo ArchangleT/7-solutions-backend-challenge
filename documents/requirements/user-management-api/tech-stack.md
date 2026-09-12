@@ -102,15 +102,15 @@ backend-challenge/
 │   ├── adapter/
 │   │   ├── middleware/               # shared Fiber middleware
 │   │   │   ├── auth_middleware.go    # Bearer JWT auth (+ Authenticate guard)
-│   │   │   ├── log_middleware.go     # request logging
-│   │   │   └── recovery_middleware.go
+│   │   │   ├── log_middleware.go     # request logging (method, path, status, duration)
+│   │   │   └── recovery_middleware.go# (unused — server uses Fiber built-in recover)
 │   │   ├── inbound/
 │   │   │   └── http/                 # Fiber handlers (implementation ของ Service port)
 │   │   │       ├── server.go         # assembles app + apiHandler (implements ServerInterface)
 │   │   │       ├── server_openapi.gen.go  # oapi-codegen output (routes + models)
 │   │   │       ├── helpers/utils.go  # DecodeBody + WriteServiceError (shared plumbing)
 │   │   │       ├── user/             # Handler + Responder interface (user endpoints)
-│   │   │       └── health-check/    # GET /health
+│   │   │       └── health-check/     # GET /health
 │   │   │
 │   │   └── outbound/                 # implementation ของ Domain/Application ports
 │   │       ├── mongodb/              # user repository (MongoDB)
@@ -126,7 +126,7 @@ backend-challenge/
 │   ├── openapi.yaml                  # OpenAPI 3.0.3 spec (source of truth for routes)
 │   └── codegen.yaml                  # oapi-codegen configuration
 │
-├── docs/                             # bundled OpenAPI (swagger.json / openapi.yaml)
+├── docs/                             # bundled OpenAPI (swagger.json / swagger.yaml)
 ├── documents/                        # เอกสาร requirement / design
 ├── Makefile                          # run / build / test / codegen / mock / docsgen
 ├── go.mod
@@ -391,7 +391,7 @@ make test             # go test ./... + coverage (ไม่นับ generated/m
 make test-integration # MongoDB integration test (ต้องตั้ง TEST_MONGO_URI)
 make codegen          # oapi-codegen: api/openapi.yaml → server_openapi.gen.go
 make mock             # mockgen: domain/application ports → internal/mocks/
-make docsgen          # bundle api/openapi.yaml → docs/ (swagger.json / openapi.yaml)
+make docsgen          # bundle api/openapi.yaml → docs/ (swagger.json / swagger.yaml)
 ```
 
 ## Dependency Direction

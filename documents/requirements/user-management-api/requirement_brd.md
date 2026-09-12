@@ -2,13 +2,71 @@
 
 ## ภาพรวม
 
-RESTful API สร้างด้วย **Golang** สำหรับจัดการผู้ใช้ ใช้ **MongoDB** เป็น persistence และ **JWT** สำหรับ authentication ตาม requirements ใน `requirement.md`
+RESTful API สร้างด้วย **Golang (Go 1.26.4)** สำหรับจัดการผู้ใช้ ใช้ **MongoDB** เป็น persistence และ **JWT** สำหรับ authentication ตาม requirements ใน `requirement.md`
 
-เน้นบันทึกนี้: อธิบายการ implement **Requirement ข้อ 6 — Concurrency Task** พร้อมคำสั่ง MongoDB ที่ใช้
+- **Tech stack:** Go 1.26.4 · Fiber v2 · mongo-driver v2 · JWT (HMAC HS256) · bcrypt · oapi-codegen (OpenAPI 3.0.3)
+- **สถาปัตยกรรม:** Hexagonal (Ports & Adapters) — แยก `domain` / `application` / `adapter` / `infrastructure`
+- **บันทึกนี้:** document การ implement ครบทุกข้อ พร้อม deep-dive **Requirement ข้อ 6 — Concurrency Task**
 
 ---
 
-## Requirement 6: Concurrency Task
+## สถานะตาม Requirement
+
+| # | Requirement | สถานะ | หลักฐาน (ปัจจุบัน) |
+| --- | --- | --- | --- |
+| 1 | User Model | ✅ | `internal/domain/user/entity.go` |
+| 2 | Authentication (JWT) | ✅ | `internal/adapter/outbound/jwt/` + `internal/adapter/middleware/auth_middleware.go` |
+| 3 | User Operations (CRUD) | ✅ | `internal/application/services/user/service.go` |
+| 4 | MongoDB Integration | ✅ | `internal/adapter/outbound/mongodb/user_repository.go` + `internal/infrastructure/db/mongodb.go` |
+| 5 | Logging Middleware | ✅ | `internal/adapter/middleware/log_middleware.go` |
+| 6 | Concurrency Task (10 วิ) | ✅ | `cmd/api/main.go` → `countUsersLoop` + `internal/application/services/statusdb/` |
+| 7 | Testing | ✅ | unit tests + gomock + integration test (ดูตาราง Testing ด้านล่าง) |
+
+**Bonus:**
+
+| โบนัส | สถานะ |
+| --- | --- |
+| Containerization (Docker + docker-compose) | ✅ `Dockerfile` + `docker-compose.yml` (api + mongo:7 + healthcheck) |
+| Interface abstraction | ✅ ports (`domain/user`, `domain/statusdb`, `application/ports`) |
+| Validation | ✅ `ValidationError`, `normalizeEmail`/`validEmail`, body-size limit |
+| Graceful shutdown | ✅ `signal.NotifyContext` + `app.Shutdown()` |
+| Hexagonal architecture | ✅ full layering |
+| gRPC | ❌ ยังไม่ implement |
+
+### API Endpoints (จาก `api/openapi.yaml` — gen route ผ่าน oapi-codegen)
+
+```
+GET    /health                (public)
+POST   /api/v1/users          (public)
+POST   /api/v1/auth/login     (public)
+GET    /api/v1/users          (protected: Bearer JWT)
+GET    /api/v1/users/:id      (protected: Bearer JWT)
+PUT    /api/v1/users/:id      (protected: Bearer JWT)
+DELETE /api/v1/users/:id      (protected: Bearer JWT)
+```
+
+Routes ถูก gen เป็น Go จาก `api/openapi.yaml` (`make codegen` → `internal/adapter/inbound/http/server_openapi.gen.go`), HTTP handler อยู่ที่ `internal/adapter/inbound/http/user/handler.go`, และ guarded operation ตรวจ `middleware.Authenticate` ก่อนเข้า use case
+
+### Testing (ปัจจุบัน)
+
+| ระดับ | วิธี | ไฟล์ |
+| --- | --- | --- |
+| User service | fake in-memory repo + ตัวจริงของ `errors.Is` API | `internal/application/services/user/service_test.go` |
+| User utils | table-driven (`toOutput`, `normalizeEmail`, `validEmail`) | `internal/application/services/user/utils_test.go` |
+| statusdb service | gomock mock ของ `Repository` | `internal/application/services/statusdb/service_test.go` |
+| HTTP handlers | Fiber `app.Test` + fake service (auth/CRUD/status mapping) | `internal/adapter/inbound/http/user/handler_test.go` |
+| HTTP helpers | Fiber `app.Test` (`DecodeBody`, `WriteServiceError`) | `internal/adapter/inbound/http/helpers/utils_test.go` |
+| Health endpoint | table-driven | `internal/adapter/inbound/http/health-check/handler_test.go` |
+| JWT / bcrypt | table-driven | `internal/adapter/outbound/jwt/jwt_test.go`, `bcrypt_test.go` |
+| Mongo repository | mock `mongo.Database` (logic paths) + opt-in live test | `mongodb/user_repository_test.go` + `user_repository_integration_test.go` |
+| DB Connect | hook `ping` + mongotest จำลอง | `internal/infrastructure/db/mongodb_test.go` |
+| Config | table-driven (`config.Load`, env override) | `config/config_test.go` |
+
+รันได้ผ่าน `make test` (coverage ไม่นับ `internal/mocks/` และ `server_openapi.gen.go`)
+
+---
+
+## Requirement 6: Concurrency Task (Deep-Dive)
 
 > Run a background goroutine every 10 seconds to log the total number of users in the database
 
@@ -161,8 +219,10 @@ total, err := collection.CountDocuments(ctx, filter)
 2. Authentication — register/login, JWT HMAC `HS256`, middleware
 3. User Operations — CRUD
 4. MongoDB Integration — official Go driver
-5. Logging Middleware — method, path, execution time
+5. Logging Middleware — method, path, status, execution time
 6. Concurrency Task — background goroutine ทุก 10 วินาที (count users ด้วย `EstimatedDocumentCount` ผ่าน `statusdb` port + graceful shutdown)
-7. Testing — standard `testing` package + gomock + MongoDB integration test
+7. Testing — standard `testing` package + gomock + Fiber app.Test + MongoDB integration test
 
-Bonus: Docker, interface abstraction, validation, graceful shutdown, gRPC, hexagonal architecture
+Bonus ที่ทำแล้ว: Docker/docker-compose, interface abstraction (ports), validation, graceful shutdown, hexagonal architecture
+
+Bonus ที่ยังไม่ทำ: gRPC
