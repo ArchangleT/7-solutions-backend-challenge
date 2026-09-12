@@ -4,6 +4,7 @@
 package middleware
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,24 +13,44 @@ import (
 )
 
 // UserIDKey is the request-locals key under which the authenticated user ID is
-// stored by AuthMiddleware.
+// stored by Authenticate.
 const UserIDKey = "user_id"
 
-// AuthMiddleware validates the Bearer token and stores the authenticated user
-// ID in the request locals before delegating to the next handler.
+// ErrUnauthorized is returned by Authenticate after the 401 response has been
+// written, so callers can stop the handler chain without re-writing it.
+var ErrUnauthorized = errors.New("unauthorized")
+
+// Authenticate validates the Bearer token in c and stores the authenticated
+// user ID in the request locals. On a missing or invalid token it writes the
+// 401 response and returns ErrUnauthorized.
+func Authenticate(c *fiber.Ctx, tokens ports.TokenManager) error {
+	token := bearerToken(c.Get(fiber.HeaderAuthorization))
+	if token == "" {
+		return unauthorized(c)
+	}
+	userID, err := tokens.Validate(token)
+	if err != nil {
+		return unauthorized(c)
+	}
+	c.Locals(UserIDKey, userID)
+	return nil
+}
+
+// AuthMiddleware wraps Authenticate for use as a Fiber middleware: on a
+// missing or invalid token the 401 response is already written, so it stops
+// the chain by returning nil; otherwise it delegates to the next handler.
 func AuthMiddleware(tokens ports.TokenManager) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		token := bearerToken(c.Get(fiber.HeaderAuthorization))
-		if token == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+		if err := Authenticate(c, tokens); err != nil {
+			return nil
 		}
-		userID, err := tokens.Validate(token)
-		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
-		}
-		c.Locals(UserIDKey, userID)
 		return c.Next()
 	}
+}
+
+func unauthorized(c *fiber.Ctx) error {
+	_ = c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	return ErrUnauthorized
 }
 
 func bearerToken(header string) string {
