@@ -4,7 +4,11 @@ MOCKGEN   := $(BIN_DIR)/mockgen
 COVERAGE  := coverage.out
 COVERAGE_HTML := coverage.html
 
-.PHONY: run test test-integration tools codegen mock docsgen clean help
+.PHONY: build run test test-integration tools codegen mock docsgen clean help
+
+## build: compile the API binary into bin/
+build:
+	go build -o bin/api_user_mgr ./cmd/api
 
 ## run: start the API server (add APP_ENV=prod for production config)
 run:
@@ -13,7 +17,7 @@ run:
 ## test: run the full test suite with coverage profile (generated code excluded)
 test:
 	go test ./... -coverprofile=$(COVERAGE)
-	grep -v -E '/(internal/(generated|mocks))/' $(COVERAGE) > $(COVERAGE).filtered
+	grep -v -E '/internal/mocks/|server_openapi\.gen\.go' $(COVERAGE) > $(COVERAGE).filtered
 	go tool cover -func=$(COVERAGE).filtered
 	rm -f $(COVERAGE).filtered
 
@@ -34,7 +38,7 @@ $(MOCKGEN):
 ## codegen: regenerate the OpenAPI server interfaces and models
 codegen: $(OAPI)
 	$(OAPI) --config api/codegen.yaml api/openapi.yaml
-	gofmt -w internal/generated/api/openapi.gen.go
+	gofmt -w internal/adapter/inbound/http/server_openapi.gen.go
 
 ## mock: regenerate gomock mocks for all application ports
 mock: $(MOCKGEN)
@@ -56,7 +60,7 @@ mock: $(MOCKGEN)
 docsgen:
 	mkdir -p docs
 	npx --yes @redocly/cli bundle api/openapi.yaml -o docs/swagger.json --ext json
-	npx --yes @redocly/cli bundle api/openapi.yaml -o docs/openapi.yaml --ext yaml
+	npx --yes @redocly/cli bundle api/openapi.yaml -o docs/swagger.yaml --ext yaml
 
 ## clean: remove generated artifacts
 clean:

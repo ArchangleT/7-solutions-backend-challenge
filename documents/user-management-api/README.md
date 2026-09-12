@@ -89,6 +89,7 @@ internal/
     inbound/
       http/
         server.go                      Fiber app + compose handlers
+        server_openapi.gen.go          oapi-codegen output (ServerInterface + models)
         utility/utils.go               DecodeBody + WriteServiceError (shared plumbing)
         user/                          Responder interface + Handler (user endpoints)
         healthcheck/                   Health endpoint
@@ -96,8 +97,6 @@ internal/
       mongodb/                         UserRepository (+ integration test)
       jwt/                             JWT HS256 token manager + tests
       bcrypt/                          bcrypt password hasher + tests
-  generated/
-    api/                               oapi-codegen output (ServerInterface + models)
   mocks/                               gomock mocks (statusdb, userrepo, ports)
 docs/                                   OpenAPI bundle (make docsgen)
 api/
@@ -186,7 +185,7 @@ TEST_MONGO_URI=mongodb://localhost:27017 go test ./internal/adapter/outbound/mon
 
 ```bash
 make tools                            # install oapi-codegen + mockgen
-make codegen                          # regenerate internal/generated/api/ from api/openapi.yaml
+make codegen                          # regenerate server_openapi.gen.go from api/openapi.yaml
 make mock                             # regenerate internal/mocks/ from source interfaces
 make docsgen                          # bundle api/openapi.yaml → docs/
 ```

@@ -1,6 +1,6 @@
 # Tech Stack — User Management API
 
-**Tech Stack: Go 1.26 · Fiber v2 · MongoDB · JWT (HMAC HS256) · bcrypt**
+**Tech Stack: Go 1.26.4 · Fiber v2 · MongoDB (mongo-driver v2) · JWT (HMAC HS256) · bcrypt · oapi-codegen (OpenAPI 3.0.3)**
 
 โปรเจกต์นี้ใช้ **Hexagonal Architecture (Ports & Adapters)** โดยมี **Fiber** เป็น
 HTTP framework ฝั่ง inbound adapter
@@ -11,7 +11,7 @@ HTTP framework ฝั่ง inbound adapter
 
 ```
 ┌──────────────────────┐
-│     HTTP / REST      │   Fiber (เดิม Gin / Fiber / Echo)
+│     HTTP / REST      │   Fiber + oapi-codegen (OpenAPI 3.0.3)
 └──────────┬───────────┘
            │
         Adapter
@@ -24,9 +24,11 @@ HTTP framework ฝั่ง inbound adapter
 │                                                    │
 │   Register()                                       │
 │   Login()                                          │
+│   List()                                           │
 │   GetUser()                                        │
 │   UpdateUser()                                     │
 │   DeleteUser()                                     │
+│   Count()  (statusdb concurrency task)             │
 │                                                    │
 └───────────────────────┬────────────────────────────┘
                         │
@@ -41,7 +43,7 @@ HTTP framework ฝั่ง inbound adapter
 │   Domain Rules                                     │
 │   Domain Service                                   │
 │                                                    │
-│   User                                              │
+│   User / StatusDB                                   │
 │                                                    │
 └───────────────────────┬────────────────────────────┘
                         │
@@ -68,41 +70,65 @@ backend-challenge/
 │
 ├── cmd/
 │   └── api/
-│       └── main.go                  # composition root (Fiber wiring)
+│       └── main.go                  # composition root (Fiber wiring + statusdb task)
+│
+├── config/                          # top-level config package (YAML + env + secret)
+│   ├── config.go                    # config.Load() — YAML/secret lookup + env override
+│   ├── config_dev.yaml              # per-environment YAML
+│   └── secret_dev.go / secret_prod.go
 │
 ├── internal/
 │   │
 │   ├── domain/                       # หัวใจของระบบ (ไม่รู้จัก Fiber/HTTP/MongoDB)
-│   │   └── user/
-│   │       ├── entity.go             # User entity + business rules
-│   │       ├── errors.go             # sentinel errors
-│   │       └── repository.go         # port: interface ที่ Domain ต้องการ
+│   │   ├── user/
+│   │   │   ├── entity.go             # User entity + business rules
+│   │   │   ├── errors.go             # sentinel errors
+│   │   │   └── repository.go         # port: interface ที่ Domain ต้องการ
+│   │   └── statusdb/
+│   │       └── repository.go         # port สำหรับ concurrency count task
 │   │
 │   ├── application/                  # orchestration / use cases
-│   │   ├── user/
-│   │   │   ├── service.go            # Service interface + use cases
-│   │   │   └── dto.go
+│   │   ├── services/
+│   │   │   ├── user/
+│   │   │   │   ├── service.go        # Service interface + use cases
+│   │   │   │   ├── dto.go            # CreateUserInput, LoginInput, UserOutput, ...
+│   │   │   │   └── utils.go          # normalizeEmail, validEmail, ...
+│   │   │   └── statusdb/
+│   │   │       └── service.go        # Count users (background task)
 │   │   └── ports/
-│   │       ├── hasher.go             # port สำหรับ password hasing
+│   │       ├── hasher.go             # port สำหรับ password hashing
 │   │       └── token.go              # port สำหรับ JWT
 │   │
 │   ├── adapter/
+│   │   ├── middleware/               # shared Fiber middleware
+│   │   │   ├── auth_middleware.go    # Bearer JWT auth (+ Authenticate guard)
+│   │   │   ├── log_middleware.go     # request logging
+│   │   │   └── recovery_middleware.go
 │   │   ├── inbound/
-│   │   │   └── http/                 # Fibber handlers (implementation ของ Service port)
-│   │   │       ├── server.go
-│   │   │       ├── handler.go
-│   │   │       ├── middleware.go
-│   │   │       └── response.go
+│   │   │   └── http/                 # Fiber handlers (implementation ของ Service port)
+│   │   │       ├── server.go         # assembles app + apiHandler (implements ServerInterface)
+│   │   │       ├── server_openapi.gen.go  # oapi-codegen output (routes + models)
+│   │   │       ├── utility/utils.go  # DecodeBody + WriteServiceError (shared plumbing)
+│   │   │       ├── user/             # Handler + Responder interface (user endpoints)
+│   │   │       └── healthcheck/      # GET /health
 │   │   │
 │   │   └── outbound/                 # implementation ของ Domain/Application ports
 │   │       ├── mongodb/              # user repository (MongoDB)
 │   │       ├── jwt/                  # token manager (HMAC HS256)
 │   │       └── bcrypt/               # password hasher
 │   │
-│   └── infrastructure/
-│       └── config/                   # การตั้งค่า (env)
+│   ├── infrastructure/
+│   │   └── db/mongodb.go             # MongoDB Connect wrapper (+ integration test)
+│   │
+│   └── mocks/                        # gomock mocks (statusdb, userrepo, ports)
 │
+├── api/
+│   ├── openapi.yaml                  # OpenAPI 3.0.3 spec (source of truth for routes)
+│   └── codegen.yaml                  # oapi-codegen configuration
+│
+├── docs/                             # bundled OpenAPI (swagger.json / openapi.yaml)
 ├── documents/                        # เอกสาร requirement / design
+├── Makefile                          # run / build / test / codegen / mock / docsgen
 ├── go.mod
 └── README.md
 ```
@@ -121,12 +147,14 @@ backend-challenge/
 ```go
 package user
 
+import "time"
+
 type User struct {
-    ID         string    `bson:"_id" json:"id"`
-    Name       string    `json:"name"`
-    Email      string    `json:"email"`
-    Password   string    `json:"-"` // hashed
-    CreatedAt  time.Time `json:"created_at"`
+    ID        string
+    Name      string
+    Email     string
+    Password  string // hashed
+    CreatedAt time.Time
 }
 ```
 
@@ -148,6 +176,8 @@ User
 ```go
 package user
 
+import "context"
+
 type Repository interface {
     Create(ctx context.Context, user *User) error
     FindByID(ctx context.Context, id string) (*User, error)
@@ -155,7 +185,6 @@ type Repository interface {
     List(ctx context.Context) ([]User, error)
     Update(ctx context.Context, user *User) error
     Delete(ctx context.Context, id string) error
-    Count(ctx context.Context) (int64, error)
 }
 ```
 
@@ -201,9 +230,15 @@ func (s *service) Register(ctx context.Context, in CreateUserInput) (UserOutput,
 
     if _, err := s.repo.FindByEmail(ctx, email); err == nil {
         return UserOutput{}, domain.ErrDuplicateEmail
+    } else if !errors.Is(err, domain.ErrNotFound) {
+        return UserOutput{}, err
     }
 
-    hashed, _ := s.hasher.Hash(in.Password)
+    hashed, err := s.hasher.Hash(in.Password)
+    if err != nil {
+        return UserOutput{}, err
+    }
+
     u := &domain.User{Name: name, Email: email, Password: hashed, CreatedAt: time.Now().UTC()}
     if err := s.repo.Create(ctx, u); err != nil {
         return UserOutput{}, err
@@ -211,6 +246,8 @@ func (s *service) Register(ctx context.Context, in CreateUserInput) (UserOutput,
     return toOutput(u), nil
 }
 ```
+
+`Login` อีกฝั่ง ก็เรียก port เดียวกัน: `repo.FindByEmail` → `hasher.Compare` → `tokens.Generate(id)`
 
 ## Outbound Adapter
 
@@ -244,34 +281,60 @@ Package: `internal/adapter/outbound/mongodb/user_repository.go`
 
 **เช่น HTTP API**
 
+Routes ถูก **gen เป็น Go code จาก `api/openapi.yaml`** ด้วย oapi-codegen
+(run ผ่าน `make codegen` → `internal/adapter/inbound/http/server_openapi.gen.go`):
+
 ```
-POST /api/v1/users
+POST   /api/v1/users          (public)
+POST   /api/v1/auth/login     (public)
+GET    /health                (public)
+GET    /api/v1/users          (protected)
+GET    /api/v1/users/:id      (protected)
+PUT    /api/v1/users/:id      (protected)
+DELETE /api/v1/users/:id      (protected)
 ```
 
-Handler (Fiber):
+Fiber handler (`internal/adapter/inbound/http/user/handler.go`):
 
 ```go
-func (s *Server) register(c *fiber.Ctx) error {
-    var in user.CreateUserInput
+// Handler wires the user service to Fiber handlers.
+type Handler struct {
+    Users appuser.Service
+    Responder // DecodeBody + WriteServiceError
+}
 
-    if !s.decodeBody(c, &in) {
+// Register handles POST /api/v1/users.
+func (h *Handler) Register(c *fiber.Ctx) error {
+    var in appuser.CreateUserInput
+
+    if !h.DecodeBody(c, &in) {
         return nil
     }
 
-    out, err := s.users.Register(c.UserContext(), in)
+    out, err := h.Users.Register(c.UserContext(), in)
     if err != nil {
-        return s.writeServiceError(c, err)
+        return h.WriteServiceError(c, err)
     }
 
     return c.Status(fiber.StatusCreated).JSON(out)
 }
 ```
 
+Route mapping ระหว่าง Fiber ↔ use case อยู่ที่ `server.go` (`apiHandler`
+implement `ServerInterface` ของ oapi-codegen) และ guarded operation ใช้
+`middleware.Authenticate` ตรวจ Bearer token ก่อนเข้า use case:
+
 ```
 HTTP
  │
  ▼
-Fiber Handler
+Fiber + oapi-codegen (server_openapi.gen.go)
+ │
+ ▼
+apiHandler.guard → middleware.Authenticate (JWT)
+ │
+ ▼
+user.Handler  (ใช้ Responder ทำ decode/encode)
  │
  ▼
 Use Case  (user.Service)
@@ -288,24 +351,48 @@ Domain
 
 **ทั้งหมดจะถูกประกอบที่ main.go (composition root)**
 
-ตัวอย่าง:
+ตัวอย่าง (ปัจจุบัน = `cmd/api/main.go`):
 
 ```go
 func main() {
-    cfg := config.Load()
+    logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+    slog.SetDefault(logger)
 
-    client := mongodb.Connect(ctx, cfg.MongoURI)
-    userRepo := mongodb.NewUserRepository(client.Database(cfg.MongoDatabase).Collection("users"))
+    cfg, err := config.Load() // YAML + secret file + env override
+    if err != nil { /* exit */ }
 
-    userService := user.NewService(userRepo, bcrypt.New(), jwt.NewTokenManager(cfg.JWTSecret))
+    client, err := db.Connect(ctx, cfg.MongoURI) // internal/infrastructure/db
+    if err != nil { /* exit */ }
+    defer client.Disconnect(context.WithoutCancel(ctx))
 
-    app := httpapi.NewServer(userService, jwt.NewTokenManager(cfg.JWTSecret), logger)
+    userRepo := outmongodb.NewUserRepository(client.Database(cfg.MongoDatabase).Collection("users"))
+    userRepo.EnsureIndexes(ctx) // unique email index
 
+    tokenManager := jwt.NewTokenManager(cfg.JWTSecret)
+    userService := user.NewService(userRepo, bcrypt.New(), tokenManager)
+
+    go countUsersLoop(ctx, statusdb.NewService(userRepo), logger) // concurrency task
+
+    app := httpapi.NewServer(userService, tokenManager, logger)
     app.Listen(":" + cfg.Port)
 }
 ```
 
 **นี่คือจุดที่ Infrastructure ถูกเอามาประกอบเข้ากับ Application**
+
+## Tooling / Build
+
+การ build, test และ code generation จัดการผ่าน `Makefile`:
+
+```
+make build            # go build → bin/api
+make run              # go run ./cmd/api  (APP_ENV=prod สำหรับ production)
+make test             # go test ./... + coverage (ไม่นับ generated/mocks)
+make test-integration # MongoDB integration test (ต้องตั้ง TEST_MONGO_URI)
+make codegen          # oapi-codegen: api/openapi.yaml → server_openapi.gen.go
+make mock             # mockgen: domain/application ports → internal/mocks/
+make docsgen          # bundle api/openapi.yaml → docs/ (swagger.json / openapi.yaml)
+```
 
 ## Dependency Direction
 
