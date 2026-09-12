@@ -129,33 +129,55 @@ func (s *service) Update(ctx context.Context, id string, in UpdateUserInput) (Us
 		return UserOutput{}, err
 	}
 
-	if in.Name != nil {
-		name := strings.TrimSpace(*in.Name)
-		if name == "" {
-			return UserOutput{}, &domain.ValidationError{Field: "name", Message: "is required"}
-		}
-		u.Name = name
+	if err := s.updateName(u, in.Name); err != nil {
+		return UserOutput{}, err
 	}
-
-	if in.Email != nil {
-		email := normalizeEmail(*in.Email)
-		if !validEmail(email) {
-			return UserOutput{}, &domain.ValidationError{Field: "email", Message: "is invalid"}
-		}
-		if email != u.Email {
-			if existing, err := s.repo.FindByEmail(ctx, email); err == nil && existing.ID != id {
-				return UserOutput{}, domain.ErrDuplicateEmail
-			} else if err != nil && !errors.Is(err, domain.ErrNotFound) {
-				return UserOutput{}, err
-			}
-		}
-		u.Email = email
+	if err := s.updateEmail(ctx, u, id, in.Email); err != nil {
+		return UserOutput{}, err
 	}
 
 	if err := s.repo.Update(ctx, u); err != nil {
 		return UserOutput{}, err
 	}
 	return toOutput(u), nil
+}
+
+func (s *service) updateName(u *domain.User, name *string) error {
+	if name == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*name)
+	if trimmed == "" {
+		return &domain.ValidationError{Field: "name", Message: "is required"}
+	}
+	u.Name = trimmed
+	return nil
+}
+
+func (s *service) updateEmail(ctx context.Context, u *domain.User, id string, email *string) error {
+	if email == nil {
+		return nil
+	}
+	normalized := normalizeEmail(*email)
+	if !validEmail(normalized) {
+		return &domain.ValidationError{Field: "email", Message: "is invalid"}
+	}
+	if normalized == u.Email {
+		return nil
+	}
+	return s.checkDuplicateEmail(ctx, u, id, normalized)
+}
+
+func (s *service) checkDuplicateEmail(ctx context.Context, u *domain.User, id string, email string) error {
+	existing, err := s.repo.FindByEmail(ctx, email)
+	if err == nil && existing.ID != id {
+		return domain.ErrDuplicateEmail
+	}
+	if err != nil && !errors.Is(err, domain.ErrNotFound) {
+		return err
+	}
+	u.Email = email
+	return nil
 }
 
 func (s *service) Delete(ctx context.Context, id string) error {
