@@ -1,0 +1,85 @@
+version: "2.2"
+feature: "user-management-api"
+language: "th"
+platform: "opencode"
+created: "2026-09-13T02:09:43+0700"
+updated: "2026-09-13T02:12:00+0700"
+state:
+  status: "active"
+  scope: "new"
+  sharedPhases: [context, requirements, design]
+  mode: null
+  foundationSkipped: false
+  implementationMode: null
+  quickPath: false
+artifacts:
+  context:
+    status: "approved"
+    timestamp: "2026-09-13T02:09:50+0700"
+    files: [context.md]
+  requirements:
+    status: "approved"
+    timestamp: "2026-09-13T02:10:35+0700"
+    files: [requirements.md]
+  design:
+    status: "approved"
+    timestamp: "2026-09-13T02:12:00+0700"
+    files: [design.md, design/components.md, design/data-model.md, design/api-spec.md, design/integration.md, design/implementation.md, design/testing-strategy.md, design/nfr.md]
+implementation:
+  totalTasks: 0
+  completedTasks: 0
+  currentTask: null
+  currentWave: null
+context-summary:
+  type: "Brownfield"
+  scope: "new"
+  stack: "Go 1.26.4 / Fiber v2 / MongoDB (mongo-driver v2) / JWT (HMAC HS256) / gRPC"
+  architecture: "Hexagonal (Ports & Adapters)"
+  feature: "REST API จัดการผู้ใช้ด้วย Go, MongoDB และ JWT authentication"
+  impact: "New standalone"
+  complexity: "Medium"
+  teamSize: 1
+  recommendations: { personas: false, units: false, nfr: true }
+steering:
+  updatedBy:
+    product: [context, requirements]
+    tech: [context, design]
+    structure: [context, design]
+    workflow: [context]
+    resources: [context]
+decisions:
+  requirements:
+    - D1-1: "Full product ตาม requirement.md ครบ 7 ข้อบังคับ"
+    - D1-2: "API consumer/backend integrator แบบเดียว"
+    - D1-3: "ไม่สร้าง personas.md"
+    - D1-4: "Model + Auth (JWT) + CRUD + MongoDB/middleware/concurrency/testing"
+    - D1-5: "ID, Name, Email (unique), Password (hashed), CreatedAt"
+    - D1-6: "MongoDB core; JWT/Bcrypt core; gRPC bonus"
+    - D1-7: "email unique + lowercase + format; bcrypt; password min 8"
+    - D1-8: "Go testing + mock MongoDB; official driver; HS256; 10 วิ; clean code"
+    - D1-9: "7 core = must-have; bonus = nice-to-have"
+    - D1-10: "Solo (1 developer)"
+  design:
+    - D3-1: "Fiber v2"
+    - D3-2: "Hybrid REST + gRPC"
+    - D3-3: "OpenAPI 3.0.3 + oapi-codegen"
+    - D3-4: "Custom validation in application layer"
+    - D3-5: "Sentinel errors + adapter mapping"
+    - D3-6: "log/slog"
+    - D3-7: "mongo-driver v2 (official)"
+    - D3-8: "No caching for MVP"
+    - D3-9: "JWT HMAC HS256 + Bearer middleware"
+    - D3-10: "bcrypt"
+    - D3-11: "opt-in live + bufconn + mock mongo"
+    - D3-12: "Table-driven only, no PBT"
+    - D3-13: "Structured logging only"
+    - D3-14: "YAML + env override + secret files"
+  tasks:
+    - D4-1: "Feature/module breakdown (tasks ครอบกลุ่ม components ต่อ feature)"
+    - D4-2: "Test-after (เขียน/ปรับ tests แล้ว refactor ตาม design)"
+    - D4-3: "Adapters/structural (config, db) ก่อน logic"
+    - D4-4: "Real local MongoDB (docker-compose) ระหว่าง dev"
+    - D4-5: "Unit + integration (live opt-in) only"
+    - D4-6: "Single-concern (1 ความรับผิดชอบต่อ task)"
+    - D4-7: "Parallel (execution waves, ไม่มี file ownership overlap)"
+units: []
