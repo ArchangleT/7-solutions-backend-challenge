@@ -1,0 +1,5 @@
+
+.obsidian/cache/*
+
+.opencode/logs/*
+.opencode/node_modules/*
