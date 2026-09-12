@@ -53,38 +53,38 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 
 ### 3. Outbound Adapters & Auth
 
-  - [ ] 3.1 Verify Mongo User Repository + unique index
+  - [x] 3.1 Verify Mongo User Repository + unique index
       - **Deps**: 2.1, 2.3 | **Ref**: design/components.md — C7 · design/data-model.md — document_schema·indexes · design/integration.md — MongoDB
       - `internal/adapter/outbound/mongodb/user_repository.go`: CRUD + duplicate-key → ErrDuplicateEmail + no-doc → ErrNotFound; `EnsureIndexes`
       - unit (mock mongo) + opt-in live tests (testing-strategy)
       - ✅ US-005, US-006, US-007, US-012
 
-  - [ ] 3.2 Verify JWT manager (HMAC HS256)
+  - [x] 3.2 Verify JWT manager (HMAC HS256)
       - **Deps**: 2.2 | **Ref**: design/components.md — C8 · design/nfr.md — Security
       - `internal/adapter/outbound/jwt/jwt.go`: Generate/Parse, parse fail → error → 401
       - unit tests (table-driven, tamper case)
       - ✅ US-003 (login), US-004
 
-  - [ ] 3.3 Verify bcrypt hasher
+  - [x] 3.3 Verify bcrypt hasher
       - **Deps**: 2.2 | **Ref**: design/components.md — C9
       - `internal/adapter/outbound/bcrypt/bcrypt.go`: Hash/Compare; unit tests (correct + wrong password)
       - ✅ US-003
 
 ### 4. Inbound Adapters & Middleware
 
-  - [ ] 4.1 Verify HTTP routes/handlers + auth middleware + error mapping
+  - [x] 4.1 Verify HTTP routes/handlers + auth middleware + error mapping
       - **Deps**: 2.3, 3.1, 3.2 | **Ref**: design/components.md — C5 · design/api-spec.md — conventions·error_format
       - `internal/adapter/inbound/http/`: server + `user/handler.go` + auth middleware + helpers; map terrors: ErrNotFound→404, ErrDuplicateEmail→409, Validation→400, ErrInvalidCredentials→401, อื่น→500
       - handler tests (Fiber `app.Test`) ครบทุก endpoint
       - ✅ US-002..006, US-012
 
-  - [ ] 4.2 Verify gRPC server + auth interceptor
+  - [x] 4.2 Verify gRPC server + auth interceptor
       - **Deps**: 2.3, 3.2 | **Ref**: design/components.md — C6 · design/api-spec.md — grpc_definitions
       - `api/proto/user_service.proto` + `internal/adapter/inbound/grpc/`: CreateUser (public) + GetUser (token from metadata → Unauthenticated)
       - bufconn tests
       - ✅ US-015
 
-  - [ ] 4.3 Verify logging middleware
+  - [x] 4.3 Verify logging middleware
       - **Deps**: — | **Ref**: design/components.md — C10 · design/nfr.md — Observability
       - `internal/adapter/middleware/log_middleware.go`: slog method/path/status/duration
       - ✅ US-008
@@ -141,18 +141,18 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 
 | ID | Task | Dependencies | Status |
 |----|------|--------------|--------|
-| 1.1 | Config loading verify | — | ⬜ |
-| 1.2 | MongoDB connect verify | — | ⬜ |
-| 2.1 | Domain·User entity + errors | — | ⬜ |
-| 2.2 | Application ports | 2.1 | ⬜ |
-| 2.3 | User Service | 2.1, 2.2 | ⬜ |
-| 2.4 | StatusDB service | 2.2 | ⬜ |
-| 3.1 | Mongo repo + index | 2.1, 2.3 | ⬜ |
-| 3.2 | JWT manager | 2.2 | ⬜ |
-| 3.3 | bcrypt hasher | 2.2 | ⬜ |
-| 4.1 | HTTP routes/handlers/auth/errors | 2.3, 3.1, 3.2 | ⬜ |
-| 4.2 | gRPC server + interceptor | 2.3, 3.2 | ⬜ |
-| 4.3 | Logging middleware | — | ⬜ |
+| 1.1 | Config loading verify | — | ✅ |
+| 1.2 | MongoDB connect verify | — | ✅ |
+| 2.1 | Domain·User entity + errors | — | ✅ |
+| 2.2 | Application ports | 2.1 | ✅ |
+| 2.3 | User Service | 2.1, 2.2 | ✅ |
+| 2.4 | StatusDB service | 2.2 | ✅ |
+| 3.1 | Mongo repo + index | 2.1, 2.3 | ✅ |
+| 3.2 | JWT manager | 2.2 | ✅ |
+| 3.3 | bcrypt hasher | 2.2 | ✅ |
+| 4.1 | HTTP routes/handlers/auth/errors | 2.3, 3.1, 3.2 | ✅ |
+| 4.2 | gRPC server + interceptor | 2.3, 3.2 | ✅ |
+| 4.3 | Logging middleware | — | ✅ |
 | 5.1 | Count loop | 2.4, 3.1 | ⬜ |
 | 5.2 | Composition + graceful shutdown | 4.1, 4.2, 4.3, 5.1 | ⬜ |
 | 6.1 | Live Mongo integration | 3.1, 5.2 | ⬜ |

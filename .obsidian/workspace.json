@@ -179,6 +179,7 @@
   },
   "active": "c6f168e4f169a5af",
   "lastOpenFiles": [
+    "cmd/api/main_test.go",
     "coverage.out.filtered",
     "outbound_coverage.out",
     "internal/adapter/middleware/auth_middleware_test.go",
@@ -191,7 +192,6 @@
     "internal/adapter/inbound/grpc/server.go",
     "internal/adapter/inbound/grpc/userv1/user_service_grpc.pb.go",
     "internal/adapter/inbound/grpc/userv1/user_service.pb.go",
-    "internal/adapter/inbound/grpc/userv1/api/proto/user_service_grpc.pb.go",
     "documents/summary/user-management-api/README.md",
     "documents/requirements/user-management-api/tech-stack.md",
     "documents/user-management-api/README.md",

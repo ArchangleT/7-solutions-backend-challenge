@@ -129,3 +129,10 @@
 **Action**: generation
 **Artifacts**: .github/workflows/deploy.yml, .env/.env.dev.example, .env/.env.prod.example, .aidlc/workflow/user-management-api/decisions-deploy.md
 **Outcome**: Generated deployment configuration for GitHub Actions targeting Docker containers with Blue-Green strategy. 2 environments configured (dev + production). Secrets management via GitHub Secrets. Branch strategy: main → production, feature branches → dev.
+
+### [2026-09-13T03:10:00+0700] Wave Complete: Wave 2
+
+**Phase**: implementation
+**Action**: wave 2 executed (parallel mode, 2 sub-agents)
+**Artifacts**: Phase 3: internal/adapter/outbound/mongodb/user_repository.go (CRUD + unique index + error mapping), internal/adapter/outbound/jwt/jwt.go (HS256 + validation), internal/adapter/outbound/bcrypt/bcrypt.go (Hash/Compare); Phase 4: internal/adapter/inbound/http/ (server, user/handler.go, auth middleware, error mapping), internal/adapter/inbound/grpc/ (server.go, auth.go, server_test.go), internal/adapter/middleware/log_middleware.go
+**Outcome**: pass — `make test` OK, `make build` OK, gofmt clean. 60% overall progress. Conflicts: none. Coverage: outbound/mongodb 93%, outbound/jwt 88.2%, outbound/bcrypt 100%, inbound/http 97%, inbound/grpc 95%, middleware 80%.
