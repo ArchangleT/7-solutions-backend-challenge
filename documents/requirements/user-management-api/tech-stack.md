@@ -108,9 +108,9 @@ backend-challenge/
 │   │   │   └── http/                 # Fiber handlers (implementation ของ Service port)
 │   │   │       ├── server.go         # assembles app + apiHandler (implements ServerInterface)
 │   │   │       ├── server_openapi.gen.go  # oapi-codegen output (routes + models)
-│   │   │       ├── utility/utils.go  # DecodeBody + WriteServiceError (shared plumbing)
+│   │   │       ├── helpers/utils.go  # DecodeBody + WriteServiceError (shared plumbing)
 │   │   │       ├── user/             # Handler + Responder interface (user endpoints)
-│   │   │       └── healthcheck/      # GET /health
+│   │   │       └── health-check/    # GET /health
 │   │   │
 │   │   └── outbound/                 # implementation ของ Domain/Application ports
 │   │       ├── mongodb/              # user repository (MongoDB)

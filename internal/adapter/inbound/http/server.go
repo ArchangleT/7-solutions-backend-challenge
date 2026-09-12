@@ -6,9 +6,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/healthcheck"
+	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/health-check"
 	userh "github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/user"
-	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/utility"
+	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/helpers"
 	"github.com/7-solutions/backend-challenge/internal/adapter/middleware"
 	"github.com/7-solutions/backend-challenge/internal/application/ports"
 	"github.com/7-solutions/backend-challenge/internal/application/services/user"
@@ -21,14 +21,14 @@ type Server struct {
 	logger *slog.Logger
 }
 
-// DecodeBody and WriteServiceError delegate to the shared utility package so
+// DecodeBody and WriteServiceError delegate to the shared helpers package so
 // the actual plumbing lives outside the assembling http package.
 func (s *Server) DecodeBody(c *fiber.Ctx, dst any) bool {
-	return utility.DecodeBody(c, dst)
+	return helpers.DecodeBody(c, dst)
 }
 
 func (s *Server) WriteServiceError(c *fiber.Ctx, err error) error {
-	return utility.WriteServiceError(c, s.logger, err)
+	return helpers.WriteServiceError(c, s.logger, err)
 }
 
 // apiHandler adapts the feature handlers to the generated ServerInterface
@@ -88,7 +88,7 @@ func NewServer(users user.Service, tokens ports.TokenManager, logger *slog.Logge
 
 	userH := userh.NewHandler(users, s)
 
-	app := fiber.New(fiber.Config{BodyLimit: utility.MaxBodyBytes})
+	app := fiber.New(fiber.Config{BodyLimit: helpers.MaxBodyBytes})
 	app.Use(recover.New(recover.Config{EnableStackTrace: true}))
 	app.Use(middleware.LoggingMiddleware(logger))
 

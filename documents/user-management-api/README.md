@@ -90,9 +90,9 @@ internal/
       http/
         server.go                      Fiber app + compose handlers
         server_openapi.gen.go          oapi-codegen output (ServerInterface + models)
-        utility/utils.go               DecodeBody + WriteServiceError (shared plumbing)
+        helpers/utils.go             DecodeBody + WriteServiceError (shared plumbing)
         user/                          Responder interface + Handler (user endpoints)
-        healthcheck/                   Health endpoint
+        health-check/                   Health endpoint
     outbound/
       mongodb/                         UserRepository (+ integration test)
       jwt/                             JWT HS256 token manager + tests
@@ -166,7 +166,7 @@ Tests are pure unit tests (no live MongoDB required):
 | `internal/application/services/user/` | Use cases against in-memory fakes |
 | `internal/application/services/statusdb/` | Count use case against generated gomock mock |
 | `internal/adapter/inbound/http/user/` | REST endpoints against a fake service via `app.Test()` |
-| `internal/adapter/inbound/http/healthcheck/` | Health endpoint |
+| `internal/adapter/inbound/http/health-check/` | Health endpoint |
 | `internal/adapter/outbound/jwt/` | Token generation, validation, expiry, tamper detection |
 | `internal/adapter/outbound/bcrypt/` | Hash & compare behaviour |
 

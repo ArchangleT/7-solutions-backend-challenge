@@ -1,8 +1,8 @@
-// Package utility provides low-level HTTP plumbing shared by the feature
+// Package helpers provides low-level HTTP plumbing shared by the feature
 // handlers: request body decoding and domain-error mapping. It depends only on
 // Fiber and the domain, so it can be imported by the assembling HTTP server
 // without pulling in feature packages.
-package utility
+package helpers
 
 import (
 	"bytes"
