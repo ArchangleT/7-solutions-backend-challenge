@@ -55,7 +55,7 @@ func main() {
 
 	// Concurrency task: a background goroutine that logs the total number of
 	// users in the database every 10 seconds.
-	go countUsersLoop(ctx, statusdb.NewService(userRepo), logger)
+	go countUsersLoop(ctx, statusdb.NewService(userRepo), logger, 10*time.Second)
 
 	app := httpapi.NewServer(userService, tokenManager, logger)
 	httpAddr := ":" + cfg.Port
@@ -92,10 +92,10 @@ func main() {
 	logger.Info("servers stopped")
 }
 
-// countUsersLoop polls the user count every 10 seconds until the context is
+// countUsersLoop polls the user count at the given interval until the context is
 // cancelled. It is the implementation of the requirement's concurrency task.
-func countUsersLoop(ctx context.Context, svc *statusdb.Service, logger *slog.Logger) {
-	ticker := time.NewTicker(10 * time.Second)
+func countUsersLoop(ctx context.Context, svc *statusdb.Service, logger *slog.Logger, interval time.Duration) {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	logger.Info("user count task started")

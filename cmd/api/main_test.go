@@ -14,6 +14,7 @@ import (
 
 func TestCountUsersLoop(t *testing.T) {
 	errBoom := errors.New("boom")
+	testInterval := 10 * time.Millisecond
 
 	tests := []struct {
 		name        string
@@ -69,7 +70,7 @@ func TestCountUsersLoop(t *testing.T) {
 
 			done := make(chan struct{})
 			go func() {
-				countUsersLoop(ctx, svc, slog.Default())
+				countUsersLoop(ctx, svc, slog.Default(), testInterval)
 				close(done)
 			}()
 
