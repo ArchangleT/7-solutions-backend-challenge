@@ -179,8 +179,8 @@
   },
   "active": "c6f168e4f169a5af",
   "lastOpenFiles": [
-    "cmd/api/main_test.go",
     "coverage.out.filtered",
+    "cmd/api/main_test.go",
     "outbound_coverage.out",
     "internal/adapter/middleware/auth_middleware_test.go",
     "internal/adapter/middleware/log_middleware_test.go",
