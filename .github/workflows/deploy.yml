@@ -1,0 +1,98 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Project-specific environment variables
+  APP_NAME: user-management-api
+  GO_VERSION: '1.26.4'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install dependencies
+        run: go version
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests
+        run: go test ./...
+
+  deploy-dev:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build Docker image
+        run: docker build -t user-management-api:dev .
+
+      - name: Deploy to dev
+        run: |
+          docker-compose -f docker-compose.yml up -d api-dev
+
+  deploy-prod:
+    needs: [deploy-dev]
+    runs-on: ubuntu-latest
+    environment: production
+    # Manual approval required - only runs on manual dispatch or after approval
+    workflow_dispatch:
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build Docker image
+        run: docker build -t user-management-api:prod .
+
+      - name: Blue-Green Deployment
+        run: |
+          # Swap to new version (blue-green)
+          docker-compose -f docker-compose.yml up -d api-prod
+          # Optional: wait for health check
+          sleep 30
+          # Verify health
+          curl -f http://localhost:8080/health || exit 1
+
+      - name: Notify deployment success
+        run: echo "Production deployment successful"

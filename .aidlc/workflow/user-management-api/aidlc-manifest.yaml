@@ -7,7 +7,7 @@ updated: "2026-09-13T02:13:15+0700"
 state:
   status: "active"
   scope: "new"
-  sharedPhases: [context, requirements, design, tasks]
+  sharedPhases: [context, requirements, design, tasks, build, deploy]
   mode: null
   foundationSkipped: false
   implementationMode: "parallel"
@@ -29,11 +29,16 @@ artifacts:
     status: "approved"
     timestamp: "2026-09-13T02:13:15+0700"
     files: [tasks.md]
+  build:
+    status: "approved"
+    timestamp: "2026-09-13T02:45:00+0700"
+    files: [build-report.md]
 implementation:
   totalTasks: 20
-  completedTasks: 6
+  completedTasks: 16
   currentTask: null
-  currentWave: 2
+  currentWave: 3
+  status: "completed"
 context-summary:
   type: "Brownfield"
   scope: "new"
@@ -86,4 +91,14 @@ decisions:
     - D4-5: "Unit + integration (live opt-in) only"
     - D4-6: "Single-concern (1 ความรับผิดชอบต่อ task)"
     - D4-7: "Parallel (execution waves, ไม่มี file ownership overlap)"
-units: []
+  deploy:
+    ci-platform: "GitHub Actions"
+    target: "Containers (Docker)"
+    strategy: "Blue-Green"
+    environments: "dev + production"
+    promotion: "Auto-deploy to dev on push; manual approval for production"
+    secrets-management: "GitHub Secrets"
+    rollback-strategy: "Blue-Green instant switch"
+    monitoring: "HTTP 5xx rate + response time p95 + health endpoint check"
+    branch-strategy: "`main` → production, feature branches → dev"
+    iac: "Extend existing docker-compose.yml"

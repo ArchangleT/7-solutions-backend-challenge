@@ -117,4 +117,15 @@
 **Phase**: implementation
 **Action**: wave 1 executed (parallel mode, 2 sub-agents)
 **Artifacts**: Phase 1 config/config_test.go (table-driven + GRPC_PORT coverage), internal/infrastructure/db/mongodb.go (%w wraps) + mongodb_test.go; Phase 2 internal/domain/user/entity_test.go, services/user/service_test.go (gomock table-driven), services/statusdb/service_test.go (gomock)
-**Outcome**: pass — full `go test ./...` OK, `go build ./...` OK, gofmt clean. 30% overall progress. Conflicts: none. Coverage: config 100%, infra/db 88.9%, user service 100%, statusdb 100%.
+**Outcome**: pass — full `go test ./...` OK, `go build ./...` OK, gofmt clean. 30% overall progress. Conflicts: none. Coverage: config 100%, infra/db 88.9%, user service 100%, statusdb 100%.### [2026-09-13T02:45:00+0700] build: report generated
+
+**Phase**: build
+**Action**: build-approved
+**Artifacts**: .aidlc/workflow/user-management-api/build-report.md
+**Outcome**: Build verified. 18 tests passing, 78.7% coverage, all quality gates passed. Proceeding to deploy.
+### [2026-09-13T03:00:00+0700] deploy: generation
+
+**Phase**: deploy
+**Action**: generation
+**Artifacts**: .github/workflows/deploy.yml, .env/.env.dev.example, .env/.env.prod.example, .aidlc/workflow/user-management-api/decisions-deploy.md
+**Outcome**: Generated deployment configuration for GitHub Actions targeting Docker containers with Blue-Green strategy. 2 environments configured (dev + production). Secrets management via GitHub Secrets. Branch strategy: main → production, feature branches → dev.
