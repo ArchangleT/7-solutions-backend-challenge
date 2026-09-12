@@ -108,23 +108,23 @@ gRPC:  grpc.Server → tokenAuth interceptor → grpc server (userv1.UserService
 
 ```
 ┌─────────────┐
-│   Context   │  ← คุณอยู่ตรงนี้
+│   Context ✅ │
 └──────┬──────┘
        ▼
 ┌─────────────┐
-│ Requirements│
+│ Requirements ✅ │
 └──────┬──────┘
        ▼
 ┌─────────────┐
-│    Design   │
+│    Design ✅  │
 └──────┬──────┘
        ▼
 ┌─────────────┐
-│    Tasks    │
+│    Tasks ✅   │
 └──────┬──────┘
        ▼
 ┌─────────────┐
-│  Implement  │
+│  Implement 🔄 │
 └──────┬──────┘
        ▼
 ┌─────────────────────┐
