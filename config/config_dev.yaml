@@ -1,0 +1,15 @@
+# Development environment configuration.
+# Non-secret settings live here; secrets (mongo_uri with credentials, jwt
+# secret) are provided by config/secret_dev.go.
+environment: dev
+
+server:
+  port: "8080"
+
+database:
+  name: userdb
+  # Overridden by secret_dev.go / the MONGO_URI env var when present.
+  mongo_uri: ""
+
+jwt:
+  secret: ""

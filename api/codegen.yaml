@@ -1,0 +1,9 @@
+# oapi-codegen configuration (v2.8.0) - run via `make codegen`.
+# Generates the Fiber server interface, request/response models and the
+# embedded OpenAPI spec from api/openapi.yaml into internal/generated/api.
+package: api
+output: internal/generated/api/openapi.gen.go
+generate:
+  models: true
+  fiber-server: true
+  embedded-spec: true

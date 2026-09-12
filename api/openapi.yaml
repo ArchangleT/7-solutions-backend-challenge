@@ -1,0 +1,307 @@
+openapi: 3.0.3
+info:
+  title: User Management API
+  description: |
+    RESTful user management API built with Go, Fiber, MongoDB and JWT (HS256).
+
+    All protected endpoints require a Bearer token returned by
+    `POST /api/v1/auth/login`. Errors follow a single envelope:
+
+    ```json
+    { "error": "human readable message", "fields": { "email": "is invalid" } }
+    ```
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Health
+    description: Liveness probe
+  - name: Auth
+    description: Registration and login
+  - name: Users
+    description: User CRUD operations (authenticated)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: HealthCheck
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/v1/users:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      operationId: RegisterUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    get:
+      tags: [Users]
+      summary: List all users
+      operationId: ListUsers
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and issue a JWT
+      operationId: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+
+  /api/v1/users/{id}:
+    parameters:
+      - $ref: "#/components/parameters/UserID"
+    get:
+      tags: [Users]
+      summary: Get a user by id
+      operationId: GetUser
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Users]
+      summary: Partially update a user's name and/or email
+      operationId: UpdateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Unprocessable"
+    delete:
+      tags: [Users]
+      summary: Delete a user
+      operationId: DeleteUser
+      responses:
+        "204":
+          description: User deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    UserID:
+      name: id
+      in: path
+      required: true
+      description: User id (hex ObjectID string)
+      schema:
+        type: string
+        example: 66f8a1b2c3d4e5f6a7b8c9d0
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: A conflict with the current state of the resource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unprocessable:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    User:
+      type: object
+      required: [id, name, email, created_at]
+      properties:
+        id:
+          type: string
+          example: 66f8a1b2c3d4e5f6a7b8c9d0
+        name:
+          type: string
+          example: Alice
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        created_at:
+          type: string
+          format: date-time
+
+    CreateUserRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Alice
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        password:
+          type: string
+          minLength: 8
+          format: password
+          example: secret123
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        password:
+          type: string
+          format: password
+          example: secret123
+
+    LoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: Signed JWT (HS256, expires after 24h)
+          example: eyJhbGciOiJIUzI1NiIs...
+        user:
+          $ref: "#/components/schemas/User"
+
+    UpdateUserRequest:
+      type: object
+      minProperties: 1
+      description: At least one of name or email must be provided.
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: invalid request body
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            email: is invalid

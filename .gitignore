@@ -1,5 +1,23 @@
-
 .obsidian/cache/*
 
 .opencode/logs/*
 .opencode/node_modules/*
+
+# Go build artifacts
+/bin/
+*.exe
+*.test
+*.out
+coverage.html
+coverage.out
+coverage.txt
+
+# OpenAPI docs bundle (regenerate with `make docsgen`)
+/docs/
+
+# production secrets are injected via APP_ENV=prod at runtime
+config/secret_prod.go
+
+# local environment
+.env
+.env.*
