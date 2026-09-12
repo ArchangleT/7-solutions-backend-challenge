@@ -44,7 +44,7 @@ type Config struct {
 // yamlConfig mirrors the shape of a config_{env}.yaml file.
 type yamlConfig struct {
 	Server struct {
-		Port    string `yaml:"port"`
+		Port     string `yaml:"port"`
 		GRPCPort string `yaml:"grpc_port"`
 	} `yaml:"server"`
 	Database struct {

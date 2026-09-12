@@ -2,42 +2,98 @@ package db
 
 import (
 	"context"
+	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func TestConnect_InvalidURI(t *testing.T) {
-	if _, err := Connect(context.Background(), "://not-a-uri"); err == nil {
-		t.Fatal("Connect() with invalid URI: want error, got nil")
-	}
-}
+func TestConnect(t *testing.T) {
+	errPing := errors.New("ping failed")
 
-func TestConnect_PingFails(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, err := Connect(ctx, "mongodb://localhost:27017"); err == nil {
-		t.Fatal("Connect() with cancelled context: want error, got nil")
+	tests := []struct {
+		name       string
+		uri        string
+		cancelCtx  bool
+		ping       func(context.Context, *mongo.Client) error
+		wantOK     bool
+		wantErrSub string
+		wantErrIs  error
+	}{
+		{
+			name:       "invalid uri",
+			uri:        "://not-a-uri",
+			ping:       func(context.Context, *mongo.Client) error { return nil },
+			wantOK:     false,
+			wantErrSub: "connect mongo client",
+		},
+		{
+			name:       "ping failure wraps sentinel",
+			uri:        "mongodb://localhost:27017",
+			ping:       func(context.Context, *mongo.Client) error { return errPing },
+			wantOK:     false,
+			wantErrSub: "ping mongo server",
+			wantErrIs:  errPing,
+		},
+		{
+			name:      "cancelled context aborts ping",
+			uri:       "mongodb://localhost:27017",
+			cancelCtx: true,
+			ping: func(ctx context.Context, _ *mongo.Client) error {
+				<-ctx.Done()
+				return ctx.Err()
+			},
+			wantOK: false,
+		},
+		{
+			name:   "success",
+			uri:    "mongodb://localhost:27017",
+			ping:   func(context.Context, *mongo.Client) error { return nil },
+			wantOK: true,
+		},
 	}
-}
 
-// TestConnect_Success covers the happy path by stubbing the ping probe, so it
-// runs offline. The real integration path is exercised by TestConnect_Live.
-func TestConnect_Success(t *testing.T) {
-	old := ping
-	ping = func(context.Context, *mongo.Client) error { return nil }
-	t.Cleanup(func() { ping = old })
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			old := ping
+			ping = tt.ping
+			t.Cleanup(func() { ping = old })
 
-	client, err := Connect(context.Background(), "mongodb://localhost:27017")
-	if err != nil {
-		t.Fatalf("Connect() error = %v", err)
+			ctx := context.Background()
+			if tt.cancelCtx {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+
+			client, err := Connect(ctx, tt.uri)
+			if tt.wantOK {
+				if err != nil {
+					t.Fatalf("Connect() error = %v, want nil", err)
+				}
+				if client == nil {
+					t.Fatal("Connect() returned nil client")
+				}
+				if err := client.Disconnect(context.Background()); err != nil {
+					t.Fatalf("Disconnect() error = %v", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("Connect() error = nil, want error")
+			}
+			if tt.wantErrSub != "" && !strings.Contains(err.Error(), tt.wantErrSub) {
+				t.Errorf("Connect() error = %q, want substring %q", err, tt.wantErrSub)
+			}
+			if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
+				t.Errorf("Connect() error = %v, want errors.Is(%v)", err, tt.wantErrIs)
+			}
+		})
 	}
-	if client == nil {
-		t.Fatal("Connect() returned nil client")
-	}
-	defer client.Disconnect(context.Background())
 }
 
 // TestConnect_Live is an opt-in integration test that requires a live MongoDB

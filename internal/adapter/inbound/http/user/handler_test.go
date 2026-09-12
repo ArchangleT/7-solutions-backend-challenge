@@ -141,8 +141,8 @@ func TestRegister_ValidationError(t *testing.T) {
 
 	status, body := doRequest(t, app, "POST", "/api/v1/users",
 		`{"name":"A","email":"bad","password":"secret123"}`, "")
-	if status != fiber.StatusUnprocessableEntity {
-		t.Fatalf("status = %d, want 422", status)
+	if status != fiber.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", status)
 	}
 	var errBody struct {
 		Error  string            `json:"error"`
@@ -182,6 +182,22 @@ func TestLogin_Unauthorized(t *testing.T) {
 		`{"email":"alice@example.com","password":"wrong"}`, "")
 	if status != fiber.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", status)
+	}
+}
+
+func TestLogin_BadRequest(t *testing.T) {
+	app := newTestApp(t, &fakeService{})
+
+	for name, body := range map[string]string{
+		"malformed json": `{"email":`,
+		"unknown field":  `{"email":"a@b.com","password":"x","role":"admin"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			status, _ := doRequest(t, app, "POST", "/api/v1/auth/login", body, "")
+			if status != fiber.StatusBadRequest {
+				t.Fatalf("status = %d, want 400", status)
+			}
+		})
 	}
 }
 
@@ -230,6 +246,35 @@ func TestGetByID_NotFound(t *testing.T) {
 	}
 }
 
+func TestGetByID_InvalidID(t *testing.T) {
+	svc := &fakeService{err: domain.ErrInvalidID}
+	app := newTestApp(t, svc)
+	token := issueToken(t)
+
+	status, _ := doRequest(t, app, "GET", "/api/v1/users/%20", "", token)
+	if status != fiber.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", status)
+	}
+}
+
+func TestGetByID_OK(t *testing.T) {
+	svc := &fakeService{output: sampleOutput()}
+	app := newTestApp(t, svc)
+	token := issueToken(t)
+
+	status, body := doRequest(t, app, "GET", "/api/v1/users/u1", "", token)
+	if status != fiber.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", status, body)
+	}
+	var got user.UserOutput
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != "u1" {
+		t.Errorf("body = %+v", got)
+	}
+}
+
 func TestList(t *testing.T) {
 	svc := &fakeService{list: []user.UserOutput{sampleOutput()}}
 	app := newTestApp(t, svc)
@@ -269,6 +314,49 @@ func TestUpdate_BadBody(t *testing.T) {
 	}
 }
 
+func TestUpdate_NotFound(t *testing.T) {
+	svc := &fakeService{err: domain.ErrNotFound}
+	app := newTestApp(t, svc)
+	token := issueToken(t)
+
+	status, _ := doRequest(t, app, "PUT", "/api/v1/users/missing", `{"name":"X"}`, token)
+	if status != fiber.StatusNotFound {
+		t.Fatalf("status = %d, want 404", status)
+	}
+}
+
+func TestUpdate_Conflict(t *testing.T) {
+	svc := &fakeService{err: domain.ErrDuplicateEmail}
+	app := newTestApp(t, svc)
+	token := issueToken(t)
+
+	status, _ := doRequest(t, app, "PUT", "/api/v1/users/u1", `{"email":"taken@example.com"}`, token)
+	if status != fiber.StatusConflict {
+		t.Fatalf("status = %d, want 409", status)
+	}
+}
+
+func TestUpdate_ValidationError(t *testing.T) {
+	svc := &fakeService{err: &domain.ValidationError{Field: "name", Message: "is required"}}
+	app := newTestApp(t, svc)
+	token := issueToken(t)
+
+	status, body := doRequest(t, app, "PUT", "/api/v1/users/u1", `{"name":""}`, token)
+	if status != fiber.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", status, body)
+	}
+	var errBody struct {
+		Error  string            `json:"error"`
+		Fields map[string]string `json:"fields"`
+	}
+	if err := json.Unmarshal(body, &errBody); err != nil {
+		t.Fatal(err)
+	}
+	if errBody.Error != "is required" || errBody.Fields["name"] != "is required" {
+		t.Errorf("body = %s, want validation envelope", body)
+	}
+}
+
 func TestDelete_NoContent(t *testing.T) {
 	app := newTestApp(t, &fakeService{})
 	token := issueToken(t)
@@ -287,6 +375,17 @@ func TestDelete_NotFound(t *testing.T) {
 	status, _ := doRequest(t, app, "DELETE", "/api/v1/users/missing", "", token)
 	if status != fiber.StatusNotFound {
 		t.Fatalf("status = %d, want 404", status)
+	}
+}
+
+func TestDelete_InvalidID(t *testing.T) {
+	svc := &fakeService{err: domain.ErrInvalidID}
+	app := newTestApp(t, svc)
+	token := issueToken(t)
+
+	status, _ := doRequest(t, app, "DELETE", "/api/v1/users/%20", "", token)
+	if status != fiber.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", status)
 	}
 }
 

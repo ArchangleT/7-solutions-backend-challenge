@@ -106,6 +106,7 @@ func TestCreateUser_ServiceErrorMapped(t *testing.T) {
 		{"duplicate email", domain.ErrDuplicateEmail, codes.AlreadyExists},
 		{"not found", domain.ErrNotFound, codes.NotFound},
 		{"invalid id", domain.ErrInvalidID, codes.InvalidArgument},
+		{"invalid credentials", domain.ErrInvalidCredentials, codes.Unauthenticated},
 		{"validation", &domain.ValidationError{Field: "email", Message: "is invalid"}, codes.InvalidArgument},
 		{"internal", errors.New("db is down"), codes.Internal},
 	}
@@ -152,6 +153,57 @@ func TestGetUser_RejectsInvalidToken(t *testing.T) {
 	_, err := client.GetUser(ctx, &grpcuserv1.GetUserRequest{Id: "u1"})
 	if got := status.Code(err); got != codes.Unauthenticated {
 		t.Errorf("GetUser() with bad token code = %v, want Unauthenticated", got)
+	}
+}
+
+// spyService records whether the service was reached, letting the tests
+// assert the auth interceptor short-circuits before the handler.
+type spyService struct {
+	fakeService
+	called bool
+}
+
+func (s *spyService) GetByID(_ context.Context, _ string) (user.UserOutput, error) {
+	s.called = true
+	return user.UserOutput{}, nil
+}
+
+func TestGetUser_UnauthenticatedDoesNotCallService(t *testing.T) {
+	svc := &spyService{}
+	client, _ := newTestClient(t, svc)
+
+	_, err := client.GetUser(context.Background(), &grpcuserv1.GetUserRequest{Id: "u1"})
+	if got := status.Code(err); got != codes.Unauthenticated {
+		t.Fatalf("code = %v, want Unauthenticated", got)
+	}
+	if svc.called {
+		t.Error("GetUser reached the service without a token")
+	}
+}
+
+func TestGetUser_ServiceErrorMapped(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		code codes.Code
+	}{
+		{"not found", domain.ErrNotFound, codes.NotFound},
+		{"invalid id", domain.ErrInvalidID, codes.InvalidArgument},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client, _ := newTestClient(t, &fakeService{err: tc.err})
+
+			valid, err := jwt.NewTokenManager(testSecret).Generate("u1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+valid))
+			_, err = client.GetUser(ctx, &grpcuserv1.GetUserRequest{Id: "u1"})
+			if got := status.Code(err); got != tc.code {
+				t.Errorf("GetUser() code = %v, want %v (err=%v)", got, tc.code, err)
+			}
+		})
 	}
 }
 

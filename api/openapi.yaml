@@ -67,8 +67,6 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "409":
           $ref: "#/components/responses/Conflict"
-        "422":
-          $ref: "#/components/responses/Unprocessable"
     get:
       tags: [Users]
       summary: List all users
@@ -106,8 +104,6 @@ paths:
                 $ref: "#/components/schemas/LoginResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "422":
-          $ref: "#/components/responses/Unprocessable"
 
   /api/v1/users/{id}:
     parameters:
@@ -154,8 +150,6 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-        "422":
-          $ref: "#/components/responses/Unprocessable"
     delete:
       tags: [Users]
       summary: Delete a user
@@ -208,12 +202,6 @@ components:
             $ref: "#/components/schemas/Error"
     Conflict:
       description: A conflict with the current state of the resource
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
-    Unprocessable:
-      description: Validation failed
       content:
         application/json:
           schema:

@@ -25,9 +25,21 @@ type userDoc struct {
 	CreatedAt time.Time     `bson:"created_at"`
 }
 
+// userCollection is the subset of *mongo.Collection that UserRepository uses,
+// declared as an interface so unit tests can drive the logic paths with a fake.
+type userCollection interface {
+	InsertOne(ctx context.Context, document any, opts ...options.Lister[options.InsertOneOptions]) (*mongo.InsertOneResult, error)
+	FindOne(ctx context.Context, filter any, opts ...options.Lister[options.FindOneOptions]) *mongo.SingleResult
+	Find(ctx context.Context, filter any, opts ...options.Lister[options.FindOptions]) (*mongo.Cursor, error)
+	ReplaceOne(ctx context.Context, filter any, replacement any, opts ...options.Lister[options.ReplaceOptions]) (*mongo.UpdateResult, error)
+	DeleteOne(ctx context.Context, filter any, opts ...options.Lister[options.DeleteOneOptions]) (*mongo.DeleteResult, error)
+	EstimatedDocumentCount(ctx context.Context, opts ...options.Lister[options.EstimatedDocumentCountOptions]) (int64, error)
+	Indexes() mongo.IndexView
+}
+
 // UserRepository implements user.Repository backed by MongoDB.
 type UserRepository struct {
-	collection *mongo.Collection
+	collection userCollection
 }
 
 func NewUserRepository(collection *mongo.Collection) *UserRepository {
@@ -52,7 +64,7 @@ func (r *UserRepository) Create(ctx context.Context, u *domain.User) error {
 	}
 	oid, err := bson.ObjectIDFromHex(u.ID)
 	if err != nil {
-		return err
+		return domain.ErrInvalidID
 	}
 
 	_, err = r.collection.InsertOne(ctx, userDoc{

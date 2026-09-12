@@ -175,9 +175,9 @@ func TestWriteServiceError(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:       "validation error → 422 with fields",
+			name:       "validation error → 400 with fields",
 			err:        &domain.ValidationError{Field: "name", Message: "is required"},
-			wantStatus: fiber.StatusUnprocessableEntity,
+			wantStatus: fiber.StatusBadRequest,
 			wantBody:   `{"error":"is required","fields":{"name":"is required"}}`,
 		},
 		{

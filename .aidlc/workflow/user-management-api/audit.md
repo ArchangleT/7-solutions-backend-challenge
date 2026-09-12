@@ -90,3 +90,31 @@
 **Action**: validation
 **Artifacts**: .aidlc/workflow/user-management-api/decisions-tasks.md
 **Outcome**: D4 validation clean. 🟡 Parallel Dev: mitigated — contracts/interface assigned upfront ใน design (ports, DTOs, error mapping). 🟡 DB migration: N/A — MongoDB schema-less, unique index email_1 สร้างที่ startup (sub-task of data layer). No 🔴 conflicts. Else clean.
+
+### [2026-09-13T02:13:00+0700] tasks: generation
+
+**Phase**: tasks
+**Action**: generation
+**Artifacts**: .aidlc/specs/user-management-api/tasks.md
+**Outcome**: 7 phases / 20 tasks across 5 waves (2 parallel). Strategy: feature/module breakdown + test-after + parallel waves with disjoint file ownership. Coverage: 12/12 components, 9/9 endpoints, 16/16 US covered. No ownership overlap. artifacts.tasks.status=draft.
+
+### [2026-09-13T02:13:15+0700] tasks: approval
+
+**Phase**: tasks
+**Action**: approval
+**Artifacts**: .aidlc/workflow/user-management-api/aidlc-manifest.yaml
+**Outcome**: Tasks approved. artifacts.tasks.status=approved, sharedPhases=[context, requirements, design, tasks]. Comprehensive mode → auto-continue to implement.
+
+### [2026-09-13T02:14:00+0700] implementation: mode-selection
+
+**Phase**: implementation
+**Action**: mode-selection
+**Artifacts**: .aidlc/workflow/user-management-api/aidlc-manifest.yaml
+**Outcome**: Mode selected: parallel (user "go"). 20 tasks / 7 phases / 5 waves. implementationMode=parallel, currentWave=1.
+
+### [2026-09-13T02:15:00+0700] Wave Complete: Wave 1
+
+**Phase**: implementation
+**Action**: wave 1 executed (parallel mode, 2 sub-agents)
+**Artifacts**: Phase 1 config/config_test.go (table-driven + GRPC_PORT coverage), internal/infrastructure/db/mongodb.go (%w wraps) + mongodb_test.go; Phase 2 internal/domain/user/entity_test.go, services/user/service_test.go (gomock table-driven), services/statusdb/service_test.go (gomock)
+**Outcome**: pass — full `go test ./...` OK, `go build ./...` OK, gofmt clean. 30% overall progress. Conflicts: none. Coverage: config 100%, infra/db 88.9%, user service 100%, statusdb 100%.

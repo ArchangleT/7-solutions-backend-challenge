@@ -7,8 +7,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/health-check"
-	userh "github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/user"
 	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/helpers"
+	userh "github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/user"
 	"github.com/7-solutions/backend-challenge/internal/adapter/middleware"
 	"github.com/7-solutions/backend-challenge/internal/application/ports"
 	"github.com/7-solutions/backend-challenge/internal/application/services/user"

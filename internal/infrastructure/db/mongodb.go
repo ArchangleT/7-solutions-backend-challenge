@@ -6,6 +6,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -26,13 +27,13 @@ var ping = func(ctx context.Context, client *mongo.Client) error {
 func Connect(ctx context.Context, uri string) (*mongo.Client, error) {
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connect mongo client: %w", err)
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 	if err := ping(pingCtx, client); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ping mongo server: %w", err)
 	}
 	return client, nil
 }

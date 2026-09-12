@@ -3,14 +3,14 @@ feature: "user-management-api"
 language: "th"
 platform: "opencode"
 created: "2026-09-13T02:09:43+0700"
-updated: "2026-09-13T02:12:00+0700"
+updated: "2026-09-13T02:13:15+0700"
 state:
   status: "active"
   scope: "new"
-  sharedPhases: [context, requirements, design]
+  sharedPhases: [context, requirements, design, tasks]
   mode: null
   foundationSkipped: false
-  implementationMode: null
+  implementationMode: "parallel"
   quickPath: false
 artifacts:
   context:
@@ -25,11 +25,15 @@ artifacts:
     status: "approved"
     timestamp: "2026-09-13T02:12:00+0700"
     files: [design.md, design/components.md, design/data-model.md, design/api-spec.md, design/integration.md, design/implementation.md, design/testing-strategy.md, design/nfr.md]
+  tasks:
+    status: "approved"
+    timestamp: "2026-09-13T02:13:15+0700"
+    files: [tasks.md]
 implementation:
-  totalTasks: 0
-  completedTasks: 0
+  totalTasks: 20
+  completedTasks: 6
   currentTask: null
-  currentWave: null
+  currentWave: 2
 context-summary:
   type: "Brownfield"
   scope: "new"
