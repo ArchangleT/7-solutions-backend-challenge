@@ -1,10 +1,12 @@
 BIN_DIR   := $(shell go env GOPATH)/bin
 OAPI      := $(BIN_DIR)/oapi-codegen
 MOCKGEN   := $(BIN_DIR)/mockgen
+PROTOC_GEN_GO := $(BIN_DIR)/protoc-gen-go
+PROTOC_GEN_GO_GRPC := $(BIN_DIR)/protoc-gen-go-grpc
 COVERAGE  := coverage.out
 COVERAGE_HTML := coverage.html
 
-.PHONY: build run test test-integration tools codegen mock docsgen clean help
+.PHONY: build run test test-integration tools codegen proto mock docsgen clean help
 
 ## build: compile the API binary into bin/
 build:
@@ -17,7 +19,7 @@ run:
 ## test: run the full test suite with coverage profile (generated code excluded)
 test:
 	go test ./... -coverprofile=$(COVERAGE)
-	grep -v -E '/internal/mocks/|server_openapi\.gen\.go' $(COVERAGE) > $(COVERAGE).filtered
+	grep -v -E '/internal/mocks/|server_openapi\.gen\.go|\.pb\.go' $(COVERAGE) > $(COVERAGE).filtered
 	go tool cover -func=$(COVERAGE).filtered
 	rm -f $(COVERAGE).filtered
 
@@ -26,8 +28,8 @@ test-integration:
 	TEST_MONGO_URI="$${TEST_MONGO_URI:?set TEST_MONGO_URI to a live MongoDB URI}" \
 		go test ./internal/infrastructure/db/ -run TestConnect_Live -count=1 -v
 
-## tools: install oapi-codegen and mockgen into $(go env GOPATH)/bin
-tools: $(OAPI) $(MOCKGEN)
+## tools: install oapi-codegen, mockgen and protoc plugins into $(go env GOPATH)/bin
+tools: $(OAPI) $(MOCKGEN) $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC)
 
 $(OAPI):
 	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
@@ -35,10 +37,29 @@ $(OAPI):
 $(MOCKGEN):
 	go install go.uber.org/mock/mockgen@latest
 
+$(PROTOC_GEN_GO):
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
+$(PROTOC_GEN_GO_GRPC):
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
 ## codegen: regenerate the OpenAPI server interfaces and models
 codegen: $(OAPI)
 	$(OAPI) --config api/codegen.yaml api/openapi.yaml
 	gofmt -w internal/adapter/inbound/http/server_openapi.gen.go
+
+## proto: regenerate the gRPC stubs from api/proto/user_service.proto
+## (requires protoc: brew install protobuf)
+proto: $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC)
+	mkdir -p internal/adapter/inbound/grpc/userv1
+	protoc \
+		--proto_path=api/proto \
+		--go_out=internal/adapter/inbound/grpc/userv1 \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=internal/adapter/inbound/grpc/userv1 \
+		--go-grpc_opt=paths=source_relative \
+		user_service.proto
+	gofmt -w internal/adapter/inbound/grpc/userv1
 
 ## mock: regenerate gomock mocks for all application ports
 mock: $(MOCKGEN)

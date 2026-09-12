@@ -18,6 +18,7 @@ import (
 const (
 	defaultEnv           = "dev"
 	defaultPort          = "8080"
+	defaultGRPCPort      = "50051"
 	defaultMongoDatabase = "userdb"
 )
 
@@ -34,6 +35,7 @@ type Secret struct {
 type Config struct {
 	Env           string
 	Port          string
+	GRPCPort      string
 	MongoURI      string
 	MongoDatabase string
 	JWTSecret     string
@@ -42,7 +44,8 @@ type Config struct {
 // yamlConfig mirrors the shape of a config_{env}.yaml file.
 type yamlConfig struct {
 	Server struct {
-		Port string `yaml:"port"`
+		Port    string `yaml:"port"`
+		GRPCPort string `yaml:"grpc_port"`
 	} `yaml:"server"`
 	Database struct {
 		URI  string `yaml:"mongo_uri"`
@@ -116,10 +119,12 @@ func load(path, env string) (Config, error) {
 
 	// YAML supplies the non-secret defaults.
 	cfg.Port = y.Server.Port
+	cfg.GRPCPort = y.Server.GRPCPort
 	cfg.MongoDatabase = y.Database.Name
 
 	// Environment variables take precedence over both files.
 	cfg.Port = getenv("PORT", firstNonEmpty(cfg.Port, defaultPort))
+	cfg.GRPCPort = getenv("GRPC_PORT", firstNonEmpty(cfg.GRPCPort, defaultGRPCPort))
 	cfg.MongoDatabase = getenv("MONGO_DATABASE", firstNonEmpty(cfg.MongoDatabase, defaultMongoDatabase))
 	cfg.MongoURI = getenv("MONGO_URI", firstNonEmpty(cfg.MongoURI, y.Database.URI))
 	cfg.JWTSecret = getenv("JWT_SECRET", firstNonEmpty(cfg.JWTSecret, y.JWT.Secret))

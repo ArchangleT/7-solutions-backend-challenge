@@ -1,0 +1,40 @@
+// UserService defines the gRPC surface of the User Management API.
+// It mirrors two of the REST endpoints (CreateUser / GetUser) as specified in
+// the bonus gRPC requirement.
+syntax = "proto3";
+
+package userv1;
+
+// go_package path determines the output directory of protoc. The generated
+// stubs live alongside the gRPC inbound adapter in
+// internal/adapter/inbound/grpc/userv1.
+option go_package = "github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc/userv1";
+
+// UserService exposes user creation and retrieval over gRPC.
+service UserService {
+  // CreateUser registers a new user. Public: no token required.
+  rpc CreateUser(CreateUserRequest) returns (User);
+  // GetUser fetches a user by id. Protected: requires an authorization
+  // metadata token ("Bearer <jwt>").
+  rpc GetUser(GetUserRequest) returns (User);
+}
+
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+// User is the public representation of a user. The password hash is never
+// returned over the wire.
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  // created_at is the RFC 3339 timestamp of creation.
+  string created_at = 4;
+}

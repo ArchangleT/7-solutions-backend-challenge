@@ -19,6 +19,7 @@ func TestLoad(t *testing.T) {
 	withConfigDir(t, ".")
 	t.Setenv("APP_ENV", "dev")
 	t.Setenv("PORT", "")
+	t.Setenv("GRPC_PORT", "")
 	t.Setenv("MONGO_URI", "")
 	t.Setenv("MONGO_DATABASE", "")
 	t.Setenv("JWT_SECRET", "")
@@ -27,7 +28,7 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.Env != "dev" || cfg.Port != "8080" || cfg.JWTSecret != "dev-only-jwt-secret" {
+	if cfg.Env != "dev" || cfg.Port != "8080" || cfg.GRPCPort != "50051" || cfg.JWTSecret != "dev-only-jwt-secret" {
 		t.Errorf("Load() = %+v", cfg)
 	}
 }
@@ -48,6 +49,7 @@ func TestLoadDefaultEnv(t *testing.T) {
 func TestLoadDevDefaults(t *testing.T) {
 	t.Setenv("APP_ENV", "")
 	t.Setenv("PORT", "")
+	t.Setenv("GRPC_PORT", "")
 	t.Setenv("MONGO_URI", "")
 	t.Setenv("MONGO_DATABASE", "")
 	t.Setenv("JWT_SECRET", "")

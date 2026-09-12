@@ -5,6 +5,7 @@ environment: dev
 
 server:
   port: "8080"
+  grpc_port: "50051"
 
 database:
   name: userdb

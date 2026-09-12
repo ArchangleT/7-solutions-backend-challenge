@@ -1,18 +1,20 @@
 // Command api is the composition root of the application. It wires the
 // adapters to the application ports: MongoDB client, JWT token manager, bcrypt
-// hasher and the Fiber HTTP server. This is where infrastructure is assembled
-// into the application.
+// hasher and the HTTP + gRPC inbound servers. This is where infrastructure is
+// assembled into the application.
 package main
 
 import (
 	"context"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/7-solutions/backend-challenge/config"
+	grpcapi "github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc"
 	httpapi "github.com/7-solutions/backend-challenge/internal/adapter/inbound/http"
 	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/bcrypt"
 	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/jwt"
@@ -56,26 +58,38 @@ func main() {
 	go countUsersLoop(ctx, statusdb.NewService(userRepo), logger)
 
 	app := httpapi.NewServer(userService, tokenManager, logger)
-	addr := ":" + cfg.Port
+	httpAddr := ":" + cfg.Port
 
-	serveErr := make(chan error, 1)
+	lis, err := net.Listen("tcp", ":"+cfg.GRPCPort)
+	if err != nil {
+		logger.Error("failed to listen for grpc", "addr", cfg.GRPCPort, "error", err)
+		os.Exit(1)
+	}
+	grpcSrv := grpcapi.NewServer(userService, tokenManager)
+
+	serveErr := make(chan error, 2)
 	go func() {
-		logger.Info("server listening", "addr", addr)
-		serveErr <- app.Listen(addr)
+		logger.Info("http server listening", "addr", httpAddr)
+		serveErr <- app.Listen(httpAddr)
+	}()
+	go func() {
+		logger.Info("grpc server listening", "addr", lis.Addr().String())
+		serveErr <- grpcSrv.Serve(lis)
 	}()
 
 	select {
 	case err := <-serveErr:
-		logger.Error("http server exited", "error", err)
+		logger.Error("server exited", "error", err)
 		os.Exit(1)
 	case <-ctx.Done():
 		logger.Info("shutdown signal received")
 	}
 
 	if err := app.Shutdown(); err != nil {
-		logger.Error("graceful shutdown failed", "error", err)
+		logger.Error("http graceful shutdown failed", "error", err)
 	}
-	logger.Info("server stopped")
+	grpcSrv.GracefulStop()
+	logger.Info("servers stopped")
 }
 
 // countUsersLoop polls the user count every 10 seconds until the context is

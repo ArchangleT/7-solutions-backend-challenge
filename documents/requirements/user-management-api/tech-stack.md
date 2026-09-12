@@ -1,9 +1,9 @@
 # Tech Stack — User Management API
 
-**Tech Stack: Go 1.26.4 · Fiber v2 · MongoDB (mongo-driver v2) · JWT (HMAC HS256) · bcrypt · oapi-codegen (OpenAPI 3.0.3)**
+**Tech Stack: Go 1.26.4 · Fiber v2 · gRPC · MongoDB (mongo-driver v2) · JWT (HMAC HS256) · bcrypt · oapi-codegen (OpenAPI 3.0.3)**
 
 โปรเจกต์นี้ใช้ **Hexagonal Architecture (Ports & Adapters)** โดยมี **Fiber** เป็น
-HTTP framework ฝั่ง inbound adapter
+HTTP framework และ **gRPC** เป็น inbound adapter อีกตัวหนึ่ง
 
 ---
 
@@ -11,7 +11,11 @@ HTTP framework ฝั่ง inbound adapter
 
 ```
 ┌──────────────────────┐
-│     HTTP / REST      │   Fiber + oapi-codegen (OpenAPI 3.0.3)
+│   HTTP / REST        │   Fiber + oapi-codegen (OpenAPI 3.0.3)
+└──────────┬───────────┘
+           │
+┌──────────────────────┐
+│   gRPC               │   protoc stubs (user_service.proto)
 └──────────┬───────────┘
            │
         Adapter
@@ -105,12 +109,16 @@ backend-challenge/
 │   │   │   ├── log_middleware.go     # request logging (method, path, status, duration)
 │   │   │   └── recovery_middleware.go# (unused — server uses Fiber built-in recover)
 │   │   ├── inbound/
-│   │   │   └── http/                 # Fiber handlers (implementation ของ Service port)
-│   │   │       ├── server.go         # assembles app + apiHandler (implements ServerInterface)
-│   │   │       ├── server_openapi.gen.go  # oapi-codegen output (routes + models)
-│   │   │       ├── helpers/utils.go  # DecodeBody + WriteServiceError (shared plumbing)
-│   │   │       ├── user/             # Handler + Responder interface (user endpoints)
-│   │   │       └── health-check/     # GET /health
+│   │   │   ├── http/                 # Fiber handlers (implementation ของ Service port)
+│   │   │   │   ├── server.go         # assembles app + apiHandler (implements ServerInterface)
+│   │   │   │   ├── server_openapi.gen.go  # oapi-codegen output (routes + models)
+│   │   │   │   ├── helpers/utils.go  # DecodeBody + WriteServiceError (shared plumbing)
+│   │   │   │   ├── user/             # Handler + Responder interface (user endpoints)
+│   │   │   │   └── health-check/     # GET /health
+│   │   │   └── grpc/                 # gRPC adapter (CreateUser / GetUser)
+│   │   │       ├── server.go         # implements userv1.UserServiceServer → user.Service
+│   │   │       ├── auth.go           # token-metadata interceptor + error mapping
+│   │   │       └── userv1/           # protoc-generated stubs (*.pb.go)
 │   │   │
 │   │   └── outbound/                 # implementation ของ Domain/Application ports
 │   │       ├── mongodb/              # user repository (MongoDB)
@@ -124,7 +132,8 @@ backend-challenge/
 │
 ├── api/
 │   ├── openapi.yaml                  # OpenAPI 3.0.3 spec (source of truth for routes)
-│   └── codegen.yaml                  # oapi-codegen configuration
+│   ├── codegen.yaml                  # oapi-codegen configuration
+│   └── proto/user_service.proto      # gRPC spec (CreateUser / GetUser)
 │
 ├── docs/                             # bundled OpenAPI (swagger.json / swagger.yaml)
 ├── documents/                        # เอกสาร requirement / design
@@ -347,6 +356,32 @@ Domain
 
 นี่คือจุดที่รับผิดชอบของ **Adapter/Infrastructure** เท่านั้น
 
+### gRPC Inbound Adapter (Bonus)
+
+บริการเดียวกันเปิดให้เข้าถึงผ่าน **gRPC** ด้วย - spec อยู่ที่ `api/proto/user_service.proto`
+(`service UserService { CreateUser, GetUser }`), gen stubs ด้วย `make proto` → `internal/adapter/inbound/grpc/userv1/`:
+
+```
+gRPC
+ │
+ ▼
+grpc.Server (google.golang.org/grpc) + grpcapi.NewServer
+ │
+ ▼
+tokenAuth interceptor  (ตรวจ Bearer token ใน authorization metadata เฉพาะ GetUser)
+ │
+ ▼
+grpc.Server (implements userv1.UserServiceServer) → user.Service
+ │
+ ▼
+Domain
+```
+
+- **CreateUser**: public (เหมือน `POST /api/v1/users`)
+- **GetUser**: ต้องส่ง `authorization: Bearer <jwt>` ใน metadata (เหมือน endpoint ที่ต้อง auth)
+- error mapping: `NotFound` → NotFound, `ErrDuplicateEmail` → AlreadyExists, `ErrInvalidID`/Validation → InvalidArgument, `ErrInvalidCredentials` → Unauthenticated, อื่น ๆ → Internal
+- listen ที่ `GRPC_PORT` (default `50051`) และ ปิดแบบ graceful ด้วย `GracefulStop()`
+
 ## Dependency Injection
 
 **ทั้งหมดจะถูกประกอบที่ main.go (composition root)**
@@ -374,7 +409,13 @@ func main() {
     go countUsersLoop(ctx, statusdb.NewService(userRepo), logger) // concurrency task
 
     app := httpapi.NewServer(userService, tokenManager, logger)
-    app.Listen(":" + cfg.Port)
+    go app.Listen(":" + cfg.Port)
+
+    lis, _ := net.Listen("tcp", ":"+cfg.GRPCPort)
+    grpcSrv := grpcapi.NewServer(userService, tokenManager)
+    go grpcSrv.Serve(lis)
+
+    // wait for signal → app.Shutdown() + grpcSrv.GracefulStop()
 }
 ```
 
@@ -390,6 +431,7 @@ make run              # go run ./cmd/api  (APP_ENV=prod สำหรับ produ
 make test             # go test ./... + coverage (ไม่นับ generated/mocks)
 make test-integration # MongoDB integration test (ต้องตั้ง TEST_MONGO_URI)
 make codegen          # oapi-codegen: api/openapi.yaml → server_openapi.gen.go
+make proto            # protoc: api/proto/user_service.proto → grpc stubs (*.pb.go)
 make mock             # mockgen: domain/application ports → internal/mocks/
 make docsgen          # bundle api/openapi.yaml → docs/ (swagger.json / swagger.yaml)
 ```

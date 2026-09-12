@@ -95,6 +95,10 @@ internal/
         helpers/utils.go             DecodeBody + WriteServiceError (shared plumbing)
         user/                          Responder interface + Handler (user endpoints)
         health-check/                   Health endpoint
+      grpc/
+        server.go                      gRPC adapter: userv1.UserServiceServer → user.Service
+        auth.go                        token-metadata auth interceptor + error mapping
+        userv1/                        protoc-generated stubs (*.pb.go)
     outbound/
       mongodb/                         UserRepository (+ integration test)
       jwt/                             JWT HS256 token manager + tests
@@ -104,7 +108,8 @@ docs/                                   OpenAPI bundle (make docsgen)
 api/
   openapi.yaml                        OpenAPI 3.0.3 spec
   codegen.yaml                        oapi-codegen configuration
-Makefile                               build, run, test, test-integration, codegen, mock, docsgen, clean, help
+  proto/user_service.proto            gRPC spec (CreateUser / GetUser)
+Makefile                               build, run, test, test-integration, codegen, proto, mock, docsgen, clean, help
 ```
 
 ---
@@ -137,6 +142,7 @@ Config is loaded from `config/config_<app_env>.yaml`, overlaid with secrets from
 | ---------------- | --------------- | ------------------------------ | --------------------------- |
 | Environment      | `APP_ENV`       | `dev`                          | selects `config_<env>.yaml` |
 | Port             | `PORT`          | `8080`                         | HTTP listen port            |
+| gRPC Port        | `GRPC_PORT`      | `50051`                        | gRPC listen port            |
 | Mongo URI        | `MONGO_URI`     | `mongodb://localhost:27017`    | MongoDB connection string   |
 | Mongo database   | `MONGO_DATABASE`| `userdb`                       | database name               |
 | JWT secret       | `JWT_SECRET`    | `dev-only-jwt-secret` (dev)    | HMAC secret (production is a gitignored injected secret) |
@@ -170,6 +176,7 @@ Tests are pure unit tests (no live MongoDB required):
 | `internal/adapter/inbound/http/user/` | REST endpoints against a fake service via `app.Test()` |
 | `internal/adapter/inbound/http/helpers/` | `DecodeBody` validation + `WriteServiceError` error mapping |
 | `internal/adapter/inbound/http/health-check/` | Health endpoint |
+| `internal/adapter/inbound/grpc/` | `CreateUser`/`GetUser` via bufconn, token required on `GetUser`, error-code mapping |
 | `internal/adapter/outbound/jwt/` | Token generation, validation, expiry, tamper detection |
 | `internal/adapter/outbound/bcrypt/` | Hash & compare behaviour |
 | `internal/adapter/outbound/mongodb/` | Invalid-hex-ID paths (no DB call, nil collection) |
@@ -188,8 +195,9 @@ TEST_MONGO_URI=mongodb://localhost:27017 go test ./internal/adapter/outbound/mon
 ### Code generation
 
 ```bash
-make tools                            # install oapi-codegen + mockgen
+make tools                            # install oapi-codegen, mockgen + protoc plugins
 make codegen                          # regenerate server_openapi.gen.go from api/openapi.yaml
+make proto                            # regenerate gRPC stubs from api/proto/user_service.proto (needs protoc)
 make mock                             # regenerate internal/mocks/ from source interfaces
 make docsgen                          # bundle api/openapi.yaml → docs/swagger.{json,yaml}
 ```
@@ -209,6 +217,39 @@ make docsgen                          # bundle api/openapi.yaml → docs/swagger
 | `DELETE` | `/api/v1/users/:id`  | Bearer   | delete a user                |
 
 All protected endpoints require a valid JWT `Authorization: Bearer <token>` header.
+
+## gRPC API (bonus)
+
+The same user service is exposed over gRPC (listen on `GRPC_PORT`, default `:50051`).
+Stubs are generated from `api/proto/user_service.proto` via `make proto`.
+
+| Method | Token required | Description |
+| ------ | -------------- | ----------- |
+| `UserService.CreateUser` | No | register a user (name, email, password) |
+| `UserService.GetUser` | Yes (metadata) | fetch a user by id |
+
+`GetUser` requires an `authorization: Bearer <token>` entry in the gRPC
+metadata; `CreateUser` is public. Domain errors map to gRPC status codes:
+
+| Domain error | gRPC code |
+| ------------ | --------- |
+| `ErrNotFound` | `NotFound` |
+| `ErrDuplicateEmail` | `AlreadyExists` |
+| `ErrInvalidID` / `ValidationError` | `InvalidArgument` |
+| `ErrInvalidCredentials` / bad token | `Unauthenticated` |
+| anything else | `Internal` |
+
+Example with `grpcurl`:
+
+```bash
+# register (public)
+grpcurl -plaintext -d '{"name":"Alice","email":"alice@example.com","password":"secret123"}' \
+  localhost:50051 userv1.UserService/CreateUser
+
+# fetch by id (protected - send the JWT in metadata)
+grpcurl -plaintext -H "authorization: Bearer <your-jwt>" \
+  -d '{"id":"66f8..."}' localhost:50051 userv1.UserService/GetUser
+```
 
 ## JWT usage guide
 

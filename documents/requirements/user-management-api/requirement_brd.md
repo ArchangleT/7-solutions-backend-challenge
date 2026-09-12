@@ -29,9 +29,9 @@ RESTful API สร้างด้วย **Golang (Go 1.26.4)** สำหรั�
 | Containerization (Docker + docker-compose) | ✅ `Dockerfile` + `docker-compose.yml` (api + mongo:7 + healthcheck) |
 | Interface abstraction | ✅ ports (`domain/user`, `domain/statusdb`, `application/ports`) |
 | Validation | ✅ `ValidationError`, `normalizeEmail`/`validEmail`, body-size limit |
-| Graceful shutdown | ✅ `signal.NotifyContext` + `app.Shutdown()` |
+| Graceful shutdown | ✅ `signal.NotifyContext` + `app.Shutdown()` + `grpcSrv.GracefulStop()` |
 | Hexagonal architecture | ✅ full layering |
-| gRPC | ❌ ยังไม่ implement |
+| gRPC | ✅ `api/proto/user_service.proto` (`CreateUser`/`GetUser`), `internal/adapter/inbound/grpc/`, auth via token metadata |
 
 ### API Endpoints (จาก `api/openapi.yaml` — gen route ผ่าน oapi-codegen)
 
@@ -61,8 +61,26 @@ Routes ถูก gen เป็น Go จาก `api/openapi.yaml` (`make codegen
 | Mongo repository | mock `mongo.Database` (logic paths) + opt-in live test | `mongodb/user_repository_test.go` + `user_repository_integration_test.go` |
 | DB Connect | hook `ping` + mongotest จำลอง | `internal/infrastructure/db/mongodb_test.go` |
 | Config | table-driven (`config.Load`, env override) | `config/config_test.go` |
+| gRPC adapter | bufconn in-process + fake `user.Service` (auth token บังคับที่ `GetUser`) | `internal/adapter/inbound/grpc/server_test.go` |
 
-รันได้ผ่าน `make test` (coverage ไม่นับ `internal/mocks/` และ `server_openapi.gen.go`)
+รันได้ผ่าน `make test` (coverage ไม่นับ `internal/mocks/`, `server_openapi.gen.go`, และ `*.pb.go`)
+
+---
+
+### gRPC Support (Bonus)
+
+> Define a `.proto` file for `CreateUser` and `GetUser`, implement a gRPC server (optionally secure with token metadata)
+
+| ส่วน | ไฟล์ | รายละเอียด |
+| --- | --- | --- |
+| Proto spec | `api/proto/user_service.proto` | service `UserService` ให้ `CreateUser` / `GetUser` |
+| Generated stubs | `internal/adapter/inbound/grpc/userv1/*.pb.go` | gen ด้วย `make proto` (protoc + protoc-gen-go) |
+| Inbound adapter | `internal/adapter/inbound/grpc/server.go` | implement `UserServiceServer` → เรียก `user.Service` |
+| Auth (token metadata) | `internal/adapter/inbound/grpc/auth.go` | unary interceptor: ตรวจ Bearer token ใน `authorization` metadata เฉพาะ `GetUser` (`CreateUser` เป็น public) |
+| Error mapping | `internal/adapter/inbound/grpc/auth.go` | domain error → gRPC code (`NotFound`/`AlreadyExists`/`InvalidArgument`/`Unauthenticated`/`Internal`) |
+| Composition | `cmd/api/main.go` | `grpcapi.NewServer` + `net.Listen(":"+cfg.GRPCPort)` + `GracefulStop()` |
+
+**Design decision:** `CreateUser` เป็น public (เหมือน `POST /api/v1/users`), `GetUser` ต้องมี `authorization: Bearer <jwt>` metadata (เหมือน endpoint ที่ต้อง auth ใน REST) — ใช้ `ports.TokenManager` ร่วมกัน HTTP Middleware เดียวกัน และเปิด listen ที่ `GRPC_PORT` (default `50051`)
 
 ---
 
