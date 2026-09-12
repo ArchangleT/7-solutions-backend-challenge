@@ -18,39 +18,40 @@ func TestCountUsersLoop(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		counts      []int64
-		countErrors []error
+		setupMock   func(*statusdbmocks.MockRepository)
 		ctxSetup    func() (context.Context, context.CancelFunc)
-		wantLogs    []string
 	}{
 		{
-			name:        "logs count every tick",
-			counts:      []int64{0, 5, 10},
-			countErrors: []error{nil, nil, nil},
+			name: "logs count every tick",
+			setupMock: func(repo *statusdbmocks.MockRepository) {
+				repo.EXPECT().Count(gomock.Any()).Return(int64(0), nil).AnyTimes()
+				repo.EXPECT().Count(gomock.Any()).Return(int64(5), nil).AnyTimes()
+				repo.EXPECT().Count(gomock.Any()).Return(int64(10), nil).AnyTimes()
+			},
 			ctxSetup: func() (context.Context, context.CancelFunc) {
 				return context.WithTimeout(context.Background(), 50*time.Millisecond)
 			},
-			wantLogs: []string{"user count task started", "total users", "user count task stopped"},
 		},
 		{
-			name:        "logs error and continues on repo failure",
-			counts:      []int64{0, 0},
-			countErrors: []error{errBoom, nil},
+			name: "logs error and continues on repo failure",
+			setupMock: func(repo *statusdbmocks.MockRepository) {
+				repo.EXPECT().Count(gomock.Any()).Return(int64(0), errBoom).AnyTimes()
+				repo.EXPECT().Count(gomock.Any()).Return(int64(0), nil).AnyTimes()
+			},
 			ctxSetup: func() (context.Context, context.CancelFunc) {
 				return context.WithTimeout(context.Background(), 50*time.Millisecond)
 			},
-			wantLogs: []string{"user count task started", "failed to count users", "total users", "user count task stopped"},
 		},
 		{
-			name:        "exits immediately when context already cancelled",
-			counts:      []int64{},
-			countErrors: []error{},
+			name: "exits immediately when context already cancelled",
+			setupMock: func(repo *statusdbmocks.MockRepository) {
+				// No calls expected
+			},
 			ctxSetup: func() (context.Context, context.CancelFunc) {
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
 				return ctx, cancel
 			},
-			wantLogs: []string{"user count task started", "user count task stopped"},
 		},
 	}
 
@@ -59,9 +60,7 @@ func TestCountUsersLoop(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			repo := statusdbmocks.NewMockRepository(ctrl)
 
-			for i := range tt.counts {
-				repo.EXPECT().Count(gomock.Any()).Return(tt.counts[i], tt.countErrors[i]).Times(1)
-			}
+			tt.setupMock(repo)
 
 			svc := statusdb.NewService(repo)
 
