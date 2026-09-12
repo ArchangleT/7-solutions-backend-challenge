@@ -136,3 +136,10 @@
 **Action**: wave 2 executed (parallel mode, 2 sub-agents)
 **Artifacts**: Phase 3: internal/adapter/outbound/mongodb/user_repository.go (CRUD + unique index + error mapping), internal/adapter/outbound/jwt/jwt.go (HS256 + validation), internal/adapter/outbound/bcrypt/bcrypt.go (Hash/Compare); Phase 4: internal/adapter/inbound/http/ (server, user/handler.go, auth middleware, error mapping), internal/adapter/inbound/grpc/ (server.go, auth.go, server_test.go), internal/adapter/middleware/log_middleware.go
 **Outcome**: pass — `make test` OK, `make build` OK, gofmt clean. 60% overall progress. Conflicts: none. Coverage: outbound/mongodb 93%, outbound/jwt 88.2%, outbound/bcrypt 100%, inbound/http 97%, inbound/grpc 95%, middleware 80%.
+
+### [2026-09-13T03:15:00+0700] Wave Complete: Wave 3
+
+**Phase**: implementation
+**Action**: wave 3 executed (parallel mode, 1 sub-agent — Phase 5)
+**Artifacts**: Phase 5: cmd/api/main.go (countUsersLoop with testable interval, full composition wiring, graceful shutdown), cmd/api/main_test.go (table-driven tests for countUsersLoop)
+**Outcome**: pass — `make test` OK (81.3% coverage), `make build` OK. 70% overall progress. Conflicts: none. Coverage: countUsersLoop 100%, overall 81.3% (exceeds 80% target).

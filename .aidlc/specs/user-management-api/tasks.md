@@ -91,12 +91,12 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 
 ### 5. Background & Composition
 
-  - [ ] 5.1 Verify concurrency task (count loop)
+  - [x] 5.1 Verify concurrency task (count loop)
       - **Deps**: 2.4, 3.1 | **Ref**: design/components.md — C11 · design/nfr.md — Availability
       - `cmd/api/main.go` countUsersLoop: ticker 10 วิ + slog log "total users"
       - ✅ US-009
 
-  - [ ] 5.2 Verify composition root + graceful shutdown
+  - [x] 5.2 Verify composition root + graceful shutdown
       - **Deps**: 4.1, 4.2, 4.3, 5.1 | **Ref**: design/components.md — C12 · design/nfr.md — Availability·CI/CD
       - `cmd/api/main.go`: wiring ทั้งหมด, `signal.NotifyContext` → `app.Shutdown()` + `grpcSrv.GracefulStop()` + `client.Disconnect()` + หยุด loop
       - ✅ US-014, US-016
@@ -153,8 +153,8 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 | 4.1 | HTTP routes/handlers/auth/errors | 2.3, 3.1, 3.2 | ✅ |
 | 4.2 | gRPC server + interceptor | 2.3, 3.2 | ✅ |
 | 4.3 | Logging middleware | — | ✅ |
-| 5.1 | Count loop | 2.4, 3.1 | ⬜ |
-| 5.2 | Composition + graceful shutdown | 4.1, 4.2, 4.3, 5.1 | ⬜ |
+| 5.1 | Count loop | 2.4, 3.1 | ✅ |
+| 5.2 | Composition + graceful shutdown | 4.1, 4.2, 4.3, 5.1 | ✅ |
 | 6.1 | Live Mongo integration | 3.1, 5.2 | ⬜ |
 | 6.2 | gRPC integration | 4.2, 5.2 | ⬜ |
 | 6.3 | Docker-compose + health | 5.2 | ⬜ |
