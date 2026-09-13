@@ -227,4 +227,21 @@
 
 ---
 
-*ตรวจด้วย aidlc-code-review v1.0.0 — อ่าน design docs + source 26 ไฟล์; verify ข้อมูลอ้างอิงกับ repo จริงแล้ว*
+## ✅ สรุปสุดท้าย (closure — 2026-09-13)
+
+**Verdict**: READY ✅ — code review ปิดด้วยทุก finding ที่ต้องแก้ resolved แล้ว
+
+| Round | ข้อ | สถานะ |
+|---|---|---|
+| 1 | MJ-1 . 3, MN-1 . 5, SG-1 (8 ข้อ) | ✅ แก้ใน `e1b8483` |
+| 1 | SG-2/3/4 (3 ข้อ) | ⏸️ deferred — design decisions (จดใน audit, จะ revisit เมื่อ product ต้องการ) |
+| 2 | MN-6/7/8 + พบ MJ-4 | ✅ แก้ใน `aba6a04` |
+| 3 | re-verify + OBS-1 (note), OBS-2 | ✅ OBS-2 แก้ใน `697f7da` |
+
+**Gate สุดท้าย**: `make test` ✅ ผ่านครบ (coverage 85.4% ≥ 80% โดย exclude generated code) · `go vet ./...` clean · `make build` OK · `gofmt -l` clean · tree ปราศจากไฟล์ค้าง
+
+**คุณภาพโค้ดที่เหลือ (accepted)**:
+- ตกลงตาม design: List users เปิดทั้งชุด (US-005) · JWT 24h ไม่มี refresh/revoke (MVP) · register/login มี account-enumeration signal · rate limit per-process (single instance)
+- Hardening/bonus (ถ้ามีงบ): proxy-aware rate limiting เปิดผ่าน config (`trust_proxy`), shared rate-limit store เมื่อ scale-out, pagination
+
+*ปิดโดย aidlc-code-review v1.0.0 — บันทึกเป็น artifact `code-review` ใน manifest*
