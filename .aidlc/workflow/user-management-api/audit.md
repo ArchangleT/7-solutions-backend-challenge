@@ -300,3 +300,10 @@
 **Action**: re-review
 **Artifacts**: code-review.md
 **Outcome**: verify รอบ `aba6a04` — MN-6/7/8 + MJ-4 resolved ทั้งหมด (fiber trusted-proxy semantics safe เมื่อ whitelist ว่าง, prune sweep ≤1/window, codegen สะอาดไม่มี Unprocessable ค้าง, prod load smoke ผ่าน: secrets resolve + env override + trust normalize). Gate: make test ผ่าน (85.4%), vet/build/gofmt clean, tree clean. ไม่มี finding ใหม่ (0 Critical/Major/Minor) — เหลือ observations: OBS-1 (rate limit per-process, ต้อง shared store เมื่อ scale-out), OBS-2 (prod config ไม่มี test อัตโนมัติ).
+
+### [2026-09-13] Code Review: Fix R3-OBS-2
+
+**Phase**: code-review-fixes
+**Action**: apply-fixes
+**Artifacts**: config/config_test.go, code-review.md
+**Outcome**: เพิ่ม `TestLoadProductionYAML` — โหลด `config_prod.yaml` จริง ยืนยัน parse/trust/normalization/environment override เหนือ secret (กำหนด secrets ผ่าน env → ไม่พึ่ง git-ignored `secret_prod.go`). Gate: make test ผ่าน (85.4%), vet/build/gofmt clean.

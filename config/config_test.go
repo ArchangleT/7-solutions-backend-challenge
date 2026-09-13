@@ -223,6 +223,53 @@ func TestLoadYAMLOnly(t *testing.T) {
 	}
 }
 
+// TestLoadProductionYAML guards the production YAML contract: the file must
+// parse, the trust_proxy/trusted_proxies fields must surface, and runtime
+// secrets must win over the (intentionally empty) prod file. Secrets are
+// provided via env vars so the test stays deterministic even where the
+// git-ignored secret_prod.go is absent (e.g. CI).
+func TestLoadProductionYAML(t *testing.T) {
+	clearRuntimeEnv(t)
+	const (
+		envURI = "mongodb://user:pass@prod-host:27017"
+		envJWT = "prod-jwt-secret"
+	)
+	t.Setenv("MONGO_URI", envURI)
+	t.Setenv("JWT_SECRET", envJWT)
+
+	cfg, err := LoadFrom("config_prod.yaml", "prod")
+	if err != nil {
+		t.Fatalf("LoadFrom(config_prod.yaml, prod) error = %v", err)
+	}
+
+	if cfg.Env != "prod" {
+		t.Errorf("Env = %q, want prod", cfg.Env)
+	}
+	if cfg.Port != "8080" {
+		t.Errorf("Port = %q, want 8080", cfg.Port)
+	}
+	if cfg.GRPCPort != "50051" {
+		t.Errorf("GRPCPort = %q, want 50051", cfg.GRPCPort)
+	}
+	if cfg.MongoDatabase != "userdb" {
+		t.Errorf("MongoDatabase = %q, want userdb", cfg.MongoDatabase)
+	}
+	if cfg.TrustProxy {
+		t.Errorf("TrustProxy = true, want false (default)")
+	}
+	if cfg.TrustedProxies != nil {
+		t.Errorf("TrustedProxies = %v, want nil (empty slice normalized)", cfg.TrustedProxies)
+	}
+	// Environment variables must override both the empty file and any
+	// registered secret file.
+	if cfg.MongoURI != envURI {
+		t.Errorf("MongoURI = %q, want %q (env override)", cfg.MongoURI, envURI)
+	}
+	if cfg.JWTSecret != envJWT {
+		t.Errorf("JWTSecret = %q, want %q (env override)", cfg.JWTSecret, envJWT)
+	}
+}
+
 func TestLoadMissingRequiredSecrets(t *testing.T) {
 	clearRuntimeEnv(t)
 

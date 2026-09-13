@@ -94,6 +94,11 @@
 
 **สรุป round 3**: ทุก finding รอบที่แล้ว **resolved** — ไม่มี Critical/Major/Minor ใหม่; เหลือแค่ design observations (OBS-1, SG-2/3/4) + รายการเล็ก (OBS-2)
 
+### 🔧 หลังแก้ OBS-2 (commit ถัดจาก `4a07c12`)
+
+- **R3-OBS-2** ✅ แก้ — เพิ่ม `TestLoadProductionYAML` ใน `config/config_test.go`: โหลด `config_prod.yaml` จริง, ยืนยัน env/port/grpc/db/trust-fields/normalization และ **env override เหนือ secret file** (ใช้ `t.Setenv` → deterministic แม้ไม่มี `secret_prod.go` ที่ git-ignore ใน CI)
+- **Gate**: `make test` ✅ ผ่านครบ (coverage 85.4%), `go vet` clean, `make build` OK, `gofmt -l` clean
+
 ---
 
 ---
