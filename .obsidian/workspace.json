@@ -179,6 +179,7 @@
   "active": "c2178a2ed669771c",
   "lastOpenFiles": [
     "coverage.out.filtered",
+    "config/config_prod.yaml",
     "internal/adapter/middleware/rate_limit_test.go",
     "internal/adapter/middleware/rate_limit.go",
     "scripts/deploy.sh",
@@ -189,7 +190,6 @@
     "2026-09-13.md",
     "cmd/api/main_test.go",
     "outbound_coverage.out",
-    "internal/adapter/middleware/auth_middleware_test.go",
     "AGENTS.md",
     "documents/summary/user-management-api/README.md",
     "documents/requirements/user-management-api/tech-stack.md",

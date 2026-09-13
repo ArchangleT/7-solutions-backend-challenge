@@ -273,3 +273,23 @@
 **Outcome**: แก้ทั้งหมด 3 Major + 5 Minor + 1 Suggestion (rate limit `/auth/login` per-IP 10/min → 429). 🏗️ เปลี่ยน behavior: GET/PUT/DELETE `/:id` จำกัดเฉพาะเจ้าของ (403/PermissionDenied), validation error envelope มีข้อความเต็ม (`validation error: <field> <msg>`), config fail-fast เมื่อ secret ว่าง, gRPC internal error ไม่ leak, URI ถูก redact ใน log, ใช้ constant `FullMethodName`.
 **Deferred (product decision)**: SG-2 JWT revoke/refresh, SG-3 email enumeration, SG-4 pagination — เปลี่ยน public contract ตาม MVP/design.
 **Gate**: `make test` ผ่าน 15 pkgs (coverage 86.1% ≥ 80%), `go vet` clean, `make build` OK, `gofmt -l` clean.
+
+### [2026-09-13] Code Review: Re-Review (round 2)
+
+**Phase**: code-review-fixes
+**Action**: re-review
+**Artifacts**: code-review.md
+**Outcome**: quick re-check หลัง commit `e1b8483`. ยืนยัน MJ-1..3 + MN-1..5 + SG-1 คงแก้แล้ว, SG-2/3/4 deferred (ตามเดิม). พบใหม่ 3 🟢 Minor (proxy-aware rate-limit key — `c.IP()` หลัง NAT/LB = global lockout risk, rate-limit map ไม่ prune, openapi.yaml ไม่ประกาศ 403/envelope) + 1 💡 (List เปิดทั้งหมด ตาม US-005 — สงวนสำหรับ role model อนาคต). ไม่มี Critical/Major ใหม่. Gate: make test ผ่าน (86.1%), vet/gofmt clean.
+
+### [2026-09-13] Code Review: Fix Round 2 (CODE-MN-6/7/8 + CODE-MJ-4)
+
+**Phase**: code-review-fixes
+**Action**: apply-fixes
+**Artifacts**: code-review.md, config/config.go, config/config_{dev,prod}.yaml, Dockerfile, internal/adapter/inbound/http/server.go, cmd/api/main.go, internal/adapter/middleware/rate_limit.go(+test), api/openapi.yaml (+regenerated gen.go), api-spec.md
+
+**Outcome**:
+- MN-6 ✅ proxy-aware rate limit — config `trust_proxy`+`trusted_proxies` → `http.WithTrustedProxy` (EnableTrustedProxyCheck/TrustedProxies) ผ่าน options ของ `NewServer`, wire จาก cfg ใน main
+- MN-7 ✅ rate-limit map prune (sweep ≤1/window) + test window expiry reset
+- MN-8 ✅ openapi เพิ่ม `Forbidden`(403) + `TooManyRequests`(429) → `make codegen` (gen เพิ่ม alias, ลบ Unprocessable ค้าง)
+- ⚠️ พบใหม่ระหว่างแก้ **CODE-MJ-4** 🔴 Major: runtime image ไม่มี config yaml (+ไม่มี `config_prod.yaml`) → prod/dev container boot ไม่ติด → แก้พร้อมกัน (สร้าง `config_prod.yaml` + Dockerfile `COPY config/*.yaml`)
+- gate: make test ผ่านครบ (coverage 85.4%), go vet clean, make build OK, gofmt clean

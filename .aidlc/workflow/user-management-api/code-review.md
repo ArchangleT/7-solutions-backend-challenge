@@ -37,6 +37,44 @@
 
 ---
 
+## Re-Review รอบ 2 (2026-09-13 · หลัง commit `e1b8483`)
+
+**ขอบเขต**: quick re-check บนไฟล์ที่แก้ (grpc/auth+server, http/server, middleware/auth+rate_limit, helpers, config, main, specs) + ยืนยัน gate เดิม
+
+**ยืนยันผลรอบ 1**: MJ-1..3 ✅ MN-1..5 ✅ SG-1 ✅ / SG-2,3,4 ⏸️ (deferred) — ทุกข้อคงสถานะ; ไม่มี regression (tests ผ่านครบ, coverage 86.1%)
+
+### Findings ใหม่จากรอบแก้ไข
+
+| ID | Severity | ไฟล์ | รายละเอียด | แนวทางแก้ |
+|----|----------|------|------------|-----------|
+| CODE-MN-6 | 🟢 Minor | `middleware/rate_limit.go:34` | คีย์ bucket ด้วย `c.IP()` ตรงๆ โดยไม่ตรวจ proxy — ถ้า deploy หลัง reverse proxy / Docker NAT (userland-proxy) ทุก client ชน bucket เดียว → **ล็อก all login พร้อมกัน (global 429)** หรือ protection กลวง | เปิด `EnableTrustedProxyCheck` + `TrustedProxies` (หรือ inject IP resolver จาก config) + ระบุใน deployment notes ว่าเมื่อไหร่ต้องเปิด |
+| CODE-MN-7 | 🟢 Minor | `middleware/rate_limit.go:23-29` | map `counts` เติบโตไม่จำกัด — entries ของ IP ที่หมด window ไม่ถูกลบ (slow memory leak ใน long-running; attacker spams หลาย IP/XFF) | prune สลับลบ entries ที่ `now-w.start >= window` (sweep ทุก window หรือ bounded map/LRU) |
+| CODE-MN-8 | 🟢 Minor | `api/openapi.yaml` | 403 (ownership) และ error envelope ที่ลงจริงยังไม่ประกาศใน OpenAPI contract | เพิ่ม response 403 + envelope schema → `make codegen` (ยังไม่เกิดผลต่อ behavior; เป็นเรื่อง docs/contract) |
+| CODE-OBS-1 | 💡 Suggestion | `http/server.go` (ListUsers) | `GET /users` ยังคืน user ทั้งหมด (ตาม US-005) ขณะที่ GET/PUT/DELETE `/:id` เป็น self-scoped — ขอความเป็นส่วนตัวไม่สมบูรณ์ในรายการ | คงไว้ตาม design (admin list); หมายเหตุไว้สำหรับเมื่อมี role model (เข้ากันได้กับ CODE-SG-2/3) |
+
+**สรุป round 2**: ไม่มี Critical/Major ใหม่ — 3 Minor + 1 Suggestion ที่เกี่ยวกับ hardening/proxy และ docs contract
+
+### 🔧 สถานะหลังแก้ (fix CODE-MN-6/7/8 — commit นี้)
+
+| ID | สถานะ | วิธีแก้ |
+|----|--------|--------|
+| CODE-MN-6 | ✅ แก้ | เพิ่ม `server.trust_proxy` / `server.trusted_proxies` ใน config → `http.WithTrustedProxy()` ตั้ง `EnableTrustedProxyCheck`+`TrustedProxies` บน fiber.Config ก่อน `fiber.New` (options pattern ของ `NewServer`), main.go ต่อจาก cfg, ตัวอย่างใน `config_dev.yaml`/`config_prod.yaml` + หมายเหตุ deploy ใน api-spec.md |
+| CODE-MN-7 | ✅ แก้ | `rateLimit` เพิ่ม `prune` sweep ลบ windows ที่เกินระยะ (ทำงาน ≤ 1 ครั้ง/window) + test `TestRateLimit_PrunesExpiredWindow` |
+| CODE-MN-8 | ✅ แก้ | `openapi.yaml` เพิ่ม response `Forbidden` (403 บน GET/PUT/DELETE `/users/:id`) + `TooManyRequests` (429 บน login) + regenerate ผ่าน `make codegen` (เพิ่ม alias `Forbidden`/`TooManyRequests`, ลบ `Unprocessable` ที่ตกค้าง) |
+| CODE-OBS-1 | ⏸️ คงไว้ | List เปิดทั้งหมดตาม US-005 — จดไว้รอ role model |
+
+### 🆕 พบระหว่างแก้ (สำคัญ — deployment blocker)
+
+**CODE-MJ-4** 🔴 Major — **container เริ่มต้นไม่ติดใน prod (และ dev compose)**
+- **ไฟล์**: `Dockerfile` (runtime stage copy เฉพาะ binary), `config/config_prod.yaml` (ไม่มี)
+- **รายละเอียด**: `config.Load()` อ่าน `config/config_{env}.yaml` จาก working dir และ Docker runtime COPY แค่ `/app/server` → image ไม่มีไฟล์ yaml เลย → `APP_ENV=dev/prod` ใน compose/workflow `os.Exit(1)` ทันทีที่ boot; `APP_ENV: prod` ใน deploy workflow ยิ่งไม่มี `config_prod.yaml` ด้วยซ้ำ
+- **แก้พร้อมชุดนี้**: สร้าง `config/config_prod.yaml` (non-secret, ใช้ระหว่าง deploy) + แก้ Dockerfile `COPY config/*.yaml /app/config/` (secrets ยังอยู่ใน compiled secret file / env)
+- **Gate หลังแก้**: `make test` ✅ ผ่านครบ (coverage 85.4%), `go vet` clean, `make build` OK, `gofmt -l` clean
+
+---
+
+---
+
 ## 🔴 Critical
 
 ไม่มี — โครงสร้างสถาปัตยกรรม, dependency direction, การ hash password, การผูก JWT algorithm (HS256 เท่านั้น) และการคืน password hash ล้วนถูกต้อง

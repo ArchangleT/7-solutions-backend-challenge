@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -57,5 +58,32 @@ func TestRateLimit_IndependentPerIP(t *testing.T) {
 	// A different IP is unaffected.
 	if got := doIP(t, app, "10.0.0.2"); got != fiber.StatusOK {
 		t.Fatalf("other IP: status = %d, want 200", got)
+	}
+}
+
+// TestRateLimit_PrunesExpiredWindow verifies stale per-IP windows are dropped
+// once the window elapses, so a previously limited client can retry after the
+// window (and the in-memory map does not grow unboundedly).
+func TestRateLimit_PrunesExpiredWindow(t *testing.T) {
+	window := 2 * time.Millisecond
+	app := fiber.New()
+	lim := rateLimit(1, window, func(c *fiber.Ctx) string { return c.Get("X-Test-IP") })
+	app.Post("/", func(c *fiber.Ctx) error {
+		if err := lim(c); err != nil {
+			return nil
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	if got := doIP(t, app, "10.0.0.9"); got != fiber.StatusOK {
+		t.Fatalf("first request: status = %d, want 200", got)
+	}
+	if got := doIP(t, app, "10.0.0.9"); got != fiber.StatusTooManyRequests {
+		t.Fatalf("overflow request: status = %d, want 429", got)
+	}
+
+	time.Sleep(10 * time.Millisecond) // let the window and next sweep pass
+	if got := doIP(t, app, "10.0.0.9"); got != fiber.StatusOK {
+		t.Fatalf("request after window: status = %d, want 200 (stale entry not pruned?)", got)
 	}
 }

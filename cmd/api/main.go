@@ -58,7 +58,11 @@ func main() {
 	// users in the database every 10 seconds.
 	go countUsersLoop(ctx, statusdb.NewService(userRepo), logger, 10*time.Second)
 
-	app := httpapi.NewServer(userService, tokenManager, logger)
+	var httpOpts []httpapi.ServerOption
+	if cfg.TrustProxy {
+		httpOpts = append(httpOpts, httpapi.WithTrustedProxy(cfg.TrustedProxies))
+	}
+	app := httpapi.NewServer(userService, tokenManager, logger, httpOpts...)
 	httpAddr := ":" + cfg.Port
 
 	lis, err := net.Listen("tcp", ":"+cfg.GRPCPort)

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -76,7 +77,7 @@ func TestLoadDefaults(t *testing.T) {
 			if err != nil {
 				t.Fatalf("LoadFrom() error = %v", err)
 			}
-			if cfg != tt.want {
+			if !reflect.DeepEqual(cfg, tt.want) {
 				t.Errorf("LoadFrom() = %+v, want %+v", cfg, tt.want)
 			}
 		})
@@ -148,7 +149,7 @@ func TestLoadEnvOverrides(t *testing.T) {
 			if err != nil {
 				t.Fatalf("LoadFrom() error = %v", err)
 			}
-			if cfg != tt.want {
+			if !reflect.DeepEqual(cfg, tt.want) {
 				t.Errorf("LoadFrom() = %+v, want %+v", cfg, tt.want)
 			}
 		})
@@ -215,7 +216,7 @@ func TestLoadYAMLOnly(t *testing.T) {
 			if err != nil {
 				t.Fatalf("LoadFrom() error = %v", err)
 			}
-			if cfg != want {
+			if !reflect.DeepEqual(cfg, want) {
 				t.Errorf("LoadFrom() = %+v, want %+v", cfg, want)
 			}
 		})

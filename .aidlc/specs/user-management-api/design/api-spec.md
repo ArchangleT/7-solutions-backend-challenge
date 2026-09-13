@@ -109,7 +109,7 @@ Validation error variant (ผ่าน `WriteServiceError`):
 }
 ```
 
-**Errors**: `401` invalid credentials, `400` invalid input, `429` too many attempts (rate limited ต่อ IP — `middleware.RateLimit`, 10 ครั้ง/นาที)
+**Errors**: `401` invalid credentials, `400` invalid input, `429` too many attempts (rate limited ต่อ IP — `middleware.RateLimit`, 10 ครั้ง/นาที) — normalที่ deploy หลัง reverse proxy/LB ต้องเปิด `server.trust_proxy: true` + ระบุ `server.trusted_proxies` เพื่อให้ Fiber อ่าน client IP จริง (ไม่งั้นทุก client ชน bucket เดียว)
 
 ### Protected (require `Authorization: Bearer <token>`)
 

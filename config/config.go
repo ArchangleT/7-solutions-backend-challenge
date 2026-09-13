@@ -33,19 +33,23 @@ type Secret struct {
 
 // Config holds all runtime configuration for the server.
 type Config struct {
-	Env           string
-	Port          string
-	GRPCPort      string
-	MongoURI      string
-	MongoDatabase string
-	JWTSecret     string
+	Env            string
+	Port           string
+	GRPCPort       string
+	MongoURI       string
+	MongoDatabase  string
+	JWTSecret      string
+	TrustProxy     bool
+	TrustedProxies []string
 }
 
 // yamlConfig mirrors the shape of a config_{env}.yaml file.
 type yamlConfig struct {
 	Server struct {
-		Port     string `yaml:"port"`
-		GRPCPort string `yaml:"grpc_port"`
+		Port           string   `yaml:"port"`
+		GRPCPort       string   `yaml:"grpc_port"`
+		TrustProxy     bool     `yaml:"trust_proxy"`
+		TrustedProxies []string `yaml:"trusted_proxies"`
 	} `yaml:"server"`
 	Database struct {
 		URI  string `yaml:"mongo_uri"`
@@ -121,6 +125,11 @@ func load(path, env string) (Config, error) {
 	cfg.Port = y.Server.Port
 	cfg.GRPCPort = y.Server.GRPCPort
 	cfg.MongoDatabase = y.Database.Name
+	cfg.TrustProxy = y.Server.TrustProxy
+	cfg.TrustedProxies = y.Server.TrustedProxies
+	if len(cfg.TrustedProxies) == 0 {
+		cfg.TrustedProxies = nil
+	}
 
 	// Environment variables take precedence over both files.
 	cfg.Port = getenv("PORT", firstNonEmpty(cfg.Port, defaultPort))

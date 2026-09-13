@@ -95,14 +95,34 @@ func (h *apiHandler) DeleteUser(c *fiber.Ctx, _ UserID) error {
 	return h.users.Delete(c)
 }
 
+// ServerOption configures the Fiber application built by NewServer.
+type ServerOption func(cfg *fiber.Config)
+
+// WithTrustedProxy makes Fiber resolve the client IP from the configured
+// proxy header instead of the socket peer, but only for connections coming
+// from the given trusted proxy addresses/CIDRs. Enable it when the API sits
+// behind a reverse proxy or load balancer so login rate limiting and logs
+// see the real client IP (a single proxy IP would otherwise put every client
+// in one rate-limit bucket).
+func WithTrustedProxy(trustedProxies []string) ServerOption {
+	return func(cfg *fiber.Config) {
+		cfg.EnableTrustedProxyCheck = true
+		cfg.TrustedProxies = trustedProxies
+	}
+}
+
 // NewServer builds the Fiber application, registering all routes through the
 // oapi-codegen generated ServerInterface (see server_openapi.gen.go).
-func NewServer(users user.Service, tokens ports.TokenManager, logger *slog.Logger) *fiber.App {
+func NewServer(users user.Service, tokens ports.TokenManager, logger *slog.Logger, opts ...ServerOption) *fiber.App {
 	s := &Server{logger: logger}
 
 	userH := userh.NewHandler(users, s)
 
-	app := fiber.New(fiber.Config{BodyLimit: helpers.MaxBodyBytes})
+	fiberCfg := fiber.Config{BodyLimit: helpers.MaxBodyBytes}
+	for _, o := range opts {
+		o(&fiberCfg)
+	}
+	app := fiber.New(fiberCfg)
 	app.Use(recover.New(recover.Config{EnableStackTrace: true}))
 	app.Use(middleware.LoggingMiddleware(logger))
 

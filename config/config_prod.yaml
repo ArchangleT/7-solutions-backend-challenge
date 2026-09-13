@@ -1,0 +1,22 @@
+# Production environment configuration.
+# Non-secret settings live here; secrets (mongo_uri with credentials, jwt
+# secret) are provided by config/secret_prod.go (git-ignored) or overridden by
+# MONGO_URI / JWT_SECRET env vars.
+environment: prod
+
+server:
+  port: "8080"
+  grpc_port: "50051"
+  # Behind a reverse proxy / load balancer set trust_proxy: true and list the
+  # proxy/balanceer addresses (or private CIDRs) so login rate limiting and
+  # Fiber read the real client IP instead of the proxy IP.
+  trust_proxy: false
+  trusted_proxies: []
+
+database:
+  name: userdb
+  # Overridden by secret_prod.go / the MONGO_URI env var when present.
+  mongo_uri: ""
+
+jwt:
+  secret: ""

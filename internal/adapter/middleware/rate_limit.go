@@ -40,12 +40,29 @@ func RateLimit(max int, window time.Duration) fiber.Handler {
 func rateLimit(max int, window time.Duration, clientIP func(*fiber.Ctx) string) fiber.Handler {
 	var mu sync.Mutex
 	counts := make(map[string]*ipWindow)
+	lastSweep := time.Time{}
+
+	// prune removes windows that outlived the current one so the map does not
+	// grow unboundedly on a long-running server. It runs at most once per
+	// window to keep the sweep cost amortized.
+	prune := func(now time.Time) {
+		if now.Sub(lastSweep) < window {
+			return
+		}
+		lastSweep = now
+		for ip, w := range counts {
+			if now.Sub(w.start) >= window {
+				delete(counts, ip)
+			}
+		}
+	}
 
 	return func(c *fiber.Ctx) error {
 		ip := clientIP(c)
 		now := time.Now()
 
 		mu.Lock()
+		prune(now)
 		w, ok := counts[ip]
 		if !ok || now.Sub(w.start) >= window {
 			counts[ip] = &ipWindow{start: now, count: 1}

@@ -6,6 +6,10 @@ environment: dev
 server:
   port: "8080"
   grpc_port: "50051"
+  # Behind a reverse proxy / docker NAT? set trust_proxy: true and list the
+  # proxy addresses below so login rate limiting sees the real client IP.
+  trust_proxy: false
+  trusted_proxies: []
 
 database:
   name: userdb
