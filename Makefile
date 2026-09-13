@@ -26,7 +26,7 @@ test:
 ## test-integration: run the opt-in live MongoDB connectivity test
 test-integration:
 	TEST_MONGO_URI="$${TEST_MONGO_URI:?set TEST_MONGO_URI to a live MongoDB URI}" \
-		go test ./internal/infrastructure/db/ -run TestConnect_Live -count=1 -v
+		go test ./internal/infrastructure/db/ ./internal/adapter/outbound/mongodb/ -run 'TestConnect_Live|TestUserRepositoryIntegration' -count=1 -v
 
 ## tools: install oapi-codegen, mockgen and protoc plugins into $(go env GOPATH)/bin
 tools: $(OAPI) $(MOCKGEN) $(PROTOC_GEN_GO) $(PROTOC_GEN_GO_GRPC)

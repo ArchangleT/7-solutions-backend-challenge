@@ -103,17 +103,17 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 
 ### 6. Integration Verification (Real MongoDB)
 
-  - [ ] 6.1 Live MongoDB integration verify (opt-in)
+  - [x] 6.1 Live MongoDB integration verify (opt-in)
       - **Deps**: 3.1, 5.2 | **Ref**: design/integration.md — Integration Testing · design/testing-strategy.md — Environment
       - รันด้วย `TEST_MONGO_URI`; `make test-integration`; ตรวจ CRUD + unique index + count
       - ✅ US-007, US-009
 
-  - [ ] 6.2 gRPC integration verify (bufconn + live app wiring)
+  - [x] 6.2 gRPC integration verify (bufconn + live app wiring)
       - **Deps**: 4.2, 5.2 | **Ref**: design/integration.md · design/testing-strategy.md — per endpoint
       - bufconn ต่อ actual server; ตรวจ GetUser กับ/ไม่มี token
       - ✅ US-015
 
-  - [ ] 6.3 Docker-compose + healthcheck verify
+  - [x] 6.3 Docker-compose + healthcheck verify
       - **Deps**: 5.2 | **Ref**: design/nfr.md — Infrastructure·Availability
       - `docker-compose up` → api + mongo:7 + healthcheck; `GET /health` ตอบ OK; ports 8080/50051
       - ✅ US-011, US-014(health)
@@ -155,9 +155,9 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 | 4.3 | Logging middleware | — | ✅ |
 | 5.1 | Count loop | 2.4, 3.1 | ✅ |
 | 5.2 | Composition + graceful shutdown | 4.1, 4.2, 4.3, 5.1 | ✅ |
-| 6.1 | Live Mongo integration | 3.1, 5.2 | ⬜ |
-| 6.2 | gRPC integration | 4.2, 5.2 | ⬜ |
-| 6.3 | Docker-compose + health | 5.2 | ⬜ |
+| 6.1 | Live Mongo integration | 3.1, 5.2 | ✅ |
+| 6.2 | gRPC integration | 4.2, 5.2 | ✅ |
+| 6.3 | Docker-compose + health | 5.2 | ✅ |
 | 7.1 | Unit test sweep | 1.1..5.2 | ⬜ |
 | 7.2 | Full suite + coverage gate | 7.1, 6.1, 6.2 | ⬜ |
 | 7.3 | Traceability verification | 7.2 | ⬜ |

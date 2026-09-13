@@ -143,3 +143,10 @@
 **Action**: wave 3 executed (parallel mode, 1 sub-agent — Phase 5)
 **Artifacts**: Phase 5: cmd/api/main.go (countUsersLoop with testable interval, full composition wiring, graceful shutdown), cmd/api/main_test.go (table-driven tests for countUsersLoop)
 **Outcome**: pass — `make test` OK (81.3% coverage), `make build` OK. 70% overall progress. Conflicts: none. Coverage: countUsersLoop 100%, overall 81.3% (exceeds 80% target).
+
+### [2026-09-13T03:20:00+0700] Wave Complete: Wave 4
+
+**Phase**: implementation
+**Action**: wave 4 executed (parallel mode, 1 sub-agent — Phase 6)
+**Artifacts**: Phase 6: docker-compose.yml (healthcheck for api), Dockerfile (wget for healthcheck), Makefile (test-integration runs live MongoDB + bufconn tests), internal/adapter/inbound/grpc/server_test.go (bufconn gRPC tests), internal/adapter/outbound/mongodb/user_repository_integration_test.go (live MongoDB tests)
+**Outcome**: pass — `make test` OK (81.3% coverage), `make build` OK. 85% overall progress. Conflicts: none. Coverage: 81.3% (exceeds 80% target).

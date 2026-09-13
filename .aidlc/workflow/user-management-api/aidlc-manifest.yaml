@@ -31,9 +31,9 @@ artifacts:
     files: [tasks.md]
 implementation:
   totalTasks: 20
-  completedTasks: 14
+  completedTasks: 17
   currentTask: null
-  currentWave: 4
+  currentWave: 5
   status: "in_progress"
 context-summary:
   type: "Brownfield"
