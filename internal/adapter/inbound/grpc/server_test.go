@@ -146,6 +146,20 @@ func TestGetUser_RequiresToken(t *testing.T) {
 	}
 }
 
+func TestGetUser_ForbiddenOnOtherID(t *testing.T) {
+	client, _ := newTestClient(t, &fakeService{output: user.UserOutput{ID: "u1"}})
+
+	valid, err := jwt.NewTokenManager(testSecret).Generate("u1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+valid))
+	_, err = client.GetUser(ctx, &grpcuserv1.GetUserRequest{Id: "someone-else"})
+	if got := status.Code(err); got != codes.PermissionDenied {
+		t.Errorf("GetUser() on other id code = %v, want PermissionDenied (err=%v)", got, err)
+	}
+}
+
 func TestGetUser_RejectsInvalidToken(t *testing.T) {
 	client, _ := newTestClient(t, &fakeService{output: user.UserOutput{ID: "u1"}})
 
@@ -204,6 +218,18 @@ func TestGetUser_ServiceErrorMapped(t *testing.T) {
 				t.Errorf("GetUser() code = %v, want %v (err=%v)", got, tc.code, err)
 			}
 		})
+	}
+}
+
+func TestCreateUser_DoesNotLeakInternalError(t *testing.T) {
+	client, _ := newTestClient(t, &fakeService{err: errors.New("mongo connection refused: secret detail")})
+
+	_, err := client.CreateUser(context.Background(), &grpcuserv1.CreateUserRequest{})
+	if got := status.Code(err); got != codes.Internal {
+		t.Fatalf("CreateUser() code = %v, want Internal", got)
+	}
+	if msg := status.Convert(err).Message(); msg == "mongo connection refused: secret detail" || msg == "" {
+		t.Errorf("CreateUser() leaked internal detail: %q", msg)
 	}
 }
 

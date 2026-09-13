@@ -222,6 +222,20 @@ func TestLoadYAMLOnly(t *testing.T) {
 	}
 }
 
+func TestLoadMissingRequiredSecrets(t *testing.T) {
+	clearRuntimeEnv(t)
+
+	path := filepath.Join(t.TempDir(), "minimal.yaml")
+	content := "server:\n  port: \"7000\"\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := LoadFrom(path, "no-secret-env"); err == nil {
+		t.Fatal("LoadFrom() error = nil, want error for missing MONGO_URI/JWT_SECRET")
+	}
+}
+
 func TestSecretsRegistry(t *testing.T) {
 	registerSecrets("ci", Secret{MongoURI: "mongo://ci", JWTSecret: "ci-secret"})
 

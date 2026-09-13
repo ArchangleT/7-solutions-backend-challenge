@@ -33,10 +33,12 @@ func (s *Server) WriteServiceError(c *fiber.Ctx, err error) error {
 
 // apiHandler adapts the feature handlers to the generated ServerInterface
 // (see server_openapi.gen.go) so every route is registered through it. The
-// protected operations guard each request with middleware.Authenticate.
+// protected operations guard each request with middleware.Authenticate; the
+// user-scoped ones additionally enforce ownership (token subject == :id).
 type apiHandler struct {
-	users  *userh.Handler
-	tokens ports.TokenManager
+	users      *userh.Handler
+	tokens     ports.TokenManager
+	limitLogin fiber.Handler
 }
 
 var _ ServerInterface = (*apiHandler)(nil)
@@ -46,6 +48,9 @@ func (h *apiHandler) HealthCheck(c *fiber.Ctx) error {
 }
 
 func (h *apiHandler) Login(c *fiber.Ctx) error {
+	if err := h.limitLogin(c); err != nil {
+		return nil
+	}
 	return h.users.Login(c)
 }
 
@@ -64,6 +69,9 @@ func (h *apiHandler) GetUser(c *fiber.Ctx, _ UserID) error {
 	if err := middleware.Authenticate(c, h.tokens); err != nil {
 		return nil
 	}
+	if err := middleware.RequireOwner(c); err != nil {
+		return nil
+	}
 	return h.users.GetByID(c)
 }
 
@@ -71,11 +79,17 @@ func (h *apiHandler) UpdateUser(c *fiber.Ctx, _ UserID) error {
 	if err := middleware.Authenticate(c, h.tokens); err != nil {
 		return nil
 	}
+	if err := middleware.RequireOwner(c); err != nil {
+		return nil
+	}
 	return h.users.Update(c)
 }
 
 func (h *apiHandler) DeleteUser(c *fiber.Ctx, _ UserID) error {
 	if err := middleware.Authenticate(c, h.tokens); err != nil {
+		return nil
+	}
+	if err := middleware.RequireOwner(c); err != nil {
 		return nil
 	}
 	return h.users.Delete(c)
@@ -92,7 +106,11 @@ func NewServer(users user.Service, tokens ports.TokenManager, logger *slog.Logge
 	app.Use(recover.New(recover.Config{EnableStackTrace: true}))
 	app.Use(middleware.LoggingMiddleware(logger))
 
-	RegisterHandlers(app, &apiHandler{users: userH, tokens: tokens})
+	RegisterHandlers(app, &apiHandler{
+		users:      userH,
+		tokens:     tokens,
+		limitLogin: middleware.RateLimit(middleware.LoginMaxAttempts, middleware.LoginWindow),
+	})
 
 	return app
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	httpapi "github.com/7-solutions/backend-challenge/internal/adapter/inbound/http"
+	"github.com/7-solutions/backend-challenge/internal/adapter/middleware"
 	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/jwt"
 	"github.com/7-solutions/backend-challenge/internal/application/services/user"
 	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
@@ -57,7 +58,12 @@ func newTestApp(t *testing.T, svc user.Service) *fiber.App {
 
 func issueToken(t *testing.T) string {
 	t.Helper()
-	token, err := jwt.NewTokenManager("test-secret").Generate("u1")
+	return issueTokenFor(t, "u1")
+}
+
+func issueTokenFor(t *testing.T, subject string) string {
+	t.Helper()
+	token, err := jwt.NewTokenManager("test-secret").Generate(subject)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +255,7 @@ func TestList_ServiceError(t *testing.T) {
 func TestGetByID_NotFound(t *testing.T) {
 	svc := &fakeService{err: domain.ErrNotFound}
 	app := newTestApp(t, svc)
-	token := issueToken(t)
+	token := issueTokenFor(t, "missing")
 
 	status, _ := doRequest(t, app, "GET", "/api/v1/users/missing", "", token)
 	if status != fiber.StatusNotFound {
@@ -257,14 +263,27 @@ func TestGetByID_NotFound(t *testing.T) {
 	}
 }
 
-func TestGetByID_InvalidID(t *testing.T) {
+func TestGetByID_Forbidden(t *testing.T) {
+	svc := &fakeService{output: sampleOutput()}
+	app := newTestApp(t, svc)
+	token := issueToken(t) // subject u1
+
+	status, _ := doRequest(t, app, "GET", "/api/v1/users/other", "", token)
+	if status != fiber.StatusForbidden {
+		t.Fatalf("status = %d, want 403", status)
+	}
+}
+
+func TestGetByID_Forbidden_SelfMismatch(t *testing.T) {
 	svc := &fakeService{err: domain.ErrInvalidID}
 	app := newTestApp(t, svc)
-	token := issueToken(t)
+	token := issueToken(t) // subject u1
 
+	// A malformed id that does not match the caller's subject is denied before
+	// validation — ownership is checked first.
 	status, _ := doRequest(t, app, "GET", "/api/v1/users/%20", "", token)
-	if status != fiber.StatusBadRequest {
-		t.Fatalf("status = %d, want 400", status)
+	if status != fiber.StatusForbidden {
+		t.Fatalf("status = %d, want 403", status)
 	}
 }
 
@@ -328,11 +347,22 @@ func TestUpdate_BadBody(t *testing.T) {
 func TestUpdate_NotFound(t *testing.T) {
 	svc := &fakeService{err: domain.ErrNotFound}
 	app := newTestApp(t, svc)
-	token := issueToken(t)
+	token := issueTokenFor(t, "missing")
 
 	status, _ := doRequest(t, app, "PUT", "/api/v1/users/missing", `{"name":"X"}`, token)
 	if status != fiber.StatusNotFound {
 		t.Fatalf("status = %d, want 404", status)
+	}
+}
+
+func TestUpdate_Forbidden(t *testing.T) {
+	svc := &fakeService{output: sampleOutput()}
+	app := newTestApp(t, svc)
+	token := issueToken(t) // subject u1
+
+	status, _ := doRequest(t, app, "PUT", "/api/v1/users/other", `{"name":"X"}`, token)
+	if status != fiber.StatusForbidden {
+		t.Fatalf("status = %d, want 403", status)
 	}
 }
 
@@ -363,7 +393,7 @@ func TestUpdate_ValidationError(t *testing.T) {
 	if err := json.Unmarshal(body, &errBody); err != nil {
 		t.Fatal(err)
 	}
-	if errBody.Error != "is required" || errBody.Fields["name"] != "is required" {
+	if errBody.Error != "validation error: name is required" || errBody.Fields["name"] != "is required" {
 		t.Errorf("body = %s, want validation envelope", body)
 	}
 }
@@ -381,7 +411,7 @@ func TestDelete_NoContent(t *testing.T) {
 func TestDelete_NotFound(t *testing.T) {
 	svc := &fakeService{err: domain.ErrNotFound}
 	app := newTestApp(t, svc)
-	token := issueToken(t)
+	token := issueTokenFor(t, "missing")
 
 	status, _ := doRequest(t, app, "DELETE", "/api/v1/users/missing", "", token)
 	if status != fiber.StatusNotFound {
@@ -389,14 +419,27 @@ func TestDelete_NotFound(t *testing.T) {
 	}
 }
 
-func TestDelete_InvalidID(t *testing.T) {
-	svc := &fakeService{err: domain.ErrInvalidID}
-	app := newTestApp(t, svc)
-	token := issueToken(t)
+func TestDelete_Forbidden(t *testing.T) {
+	app := newTestApp(t, &fakeService{})
+	token := issueToken(t) // subject u1
 
-	status, _ := doRequest(t, app, "DELETE", "/api/v1/users/%20", "", token)
-	if status != fiber.StatusBadRequest {
-		t.Fatalf("status = %d, want 400", status)
+	status, _ := doRequest(t, app, "DELETE", "/api/v1/users/other", "", token)
+	if status != fiber.StatusForbidden {
+		t.Fatalf("status = %d, want 403", status)
+	}
+}
+
+func TestLogin_RateLimited(t *testing.T) {
+	app := newTestApp(t, &fakeService{})
+
+	// Exceed the login attempt limit for the same client IP.
+	var last int
+	for i := 0; i <= middleware.LoginMaxAttempts; i++ {
+		last, _ = doRequest(t, app, "POST", "/api/v1/auth/login",
+			`{"email":"a@b.com","password":"wrong"}`, "")
+	}
+	if last != fiber.StatusTooManyRequests {
+		t.Fatalf("status = %d, want 429", last)
 	}
 }
 

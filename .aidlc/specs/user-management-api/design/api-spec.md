@@ -18,7 +18,7 @@
 
 ## Error Format
 
-Error คืนเป็น JSON เดี่ยว (ไม่ใช่ envelope):
+Error คืนเป็น envelope โดยมี `error` = ข้อความอ่านเข้าใจ พร้อม `fields` เฉพาะกรณี validation:
 
 ```json
 {
@@ -30,7 +30,10 @@ Validation error variant (ผ่าน `WriteServiceError`):
 
 ```json
 {
-  "error": "validation failed: email is required"
+  "error": "validation error: email is invalid",
+  "fields": {
+    "email": "is invalid"
+  }
 }
 ```
 
@@ -38,13 +41,17 @@ Validation error variant (ผ่าน `WriteServiceError`):
 
 | Error | HTTP Status |
 |-------|-------------|
-| `domain.ErrNotFound` / `ErrInvalidID` (no doc) | 404 Not Found |
+| `domain.ErrNotFound` | 404 Not Found |
+| `domain.ErrInvalidID` | 400 Bad Request |
 | `domain.ErrDuplicateEmail` | 409 Conflict |
 | `domain.ValidationError` | 400 Bad Request |
 | `domain.ErrInvalidCredentials` | 401 Unauthorized |
 | unknown / internal | 500 Internal Server Error |
+| rate limited (`POST /api/v1/auth/login`) | 429 Too Many Requests |
 
-**Authorization**: 401 Unauthorized เมื่อ missing/invalid Bearer token (จาก `middleware.Authenticate`)
+**Authorization**:
+- 401 Unauthorized เมื่อ missing/invalid Bearer token (จาก `middleware.Authenticate`)
+- 403 Forbidden เมื่อ token ใช้ได้แต่ id ที่ขอไม่ใช่ subject ของ token (ownership check — GET/PUT/DELETE `/api/v1/users/:id` จำกัดเฉพาะเจ้าของบัญชี)
 
 ## REST Endpoints
 
@@ -102,7 +109,7 @@ Validation error variant (ผ่าน `WriteServiceError`):
 }
 ```
 
-**Errors**: `401` invalid credentials, `400` invalid input
+**Errors**: `401` invalid credentials, `400` invalid input, `429` too many attempts (rate limited ต่อ IP — `middleware.RateLimit`, 10 ครั้ง/นาที)
 
 ### Protected (require `Authorization: Bearer <token>`)
 
@@ -185,8 +192,8 @@ syntax = "proto3";
 package userv1;
 
 service UserService {
-  rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);  // public
-  rpc GetUser (GetUserRequest) returns (GetUserResponse);           // requires Bearer token in metadata
+  rpc CreateUser (CreateUserRequest) returns (User);  // public
+  rpc GetUser (GetUserRequest) returns (User);        // requires Bearer token + subject == id
 }
 
 message CreateUserRequest {
@@ -194,18 +201,16 @@ message CreateUserRequest {
   string email = 2;
   string password = 3;
 }
-message CreateUserResponse { User user = 1; }
 message GetUserRequest { string id = 1; }
-message GetUserResponse { User user = 1; }
 message User {
   string id = 1;
   string name = 2;
   string email = 3;
-  string created_at = 4;
+  string created_at = 4;  // RFC 3339
 }
 ```
 
-**Auth**: `GetUser` ต้องส่ง `authorization: Bearer <jwt>` ใน metadata (ตรวจด้วย unary interceptor) — `CreateUser` public
+**Auth**: `GetUser` ต้องส่ง `authorization: Bearer <jwt>` ใน metadata (ตรวจด้วย unary interceptor) — `CreateUser` public. **Ownership**: subject ของ token ต้องตรงกับ `{id}` ที่ขอ มิฉะนั้นได้ `codes.PermissionDenied`
 
 **gRPC error mapping**:
 
@@ -215,7 +220,8 @@ message User {
 | `ErrDuplicateEmail` | `codes.AlreadyExists` |
 | `ErrInvalidID` / `ValidationError` | `codes.InvalidArgument` |
 | `ErrInvalidCredentials` | `codes.Unauthenticated` |
-| other | `codes.Internal` |
+| ownership mismatch | `codes.PermissionDenied` |
+| other | `codes.Internal` (ข้อความ generic — ไม่ leak รายละเอียดภายใน) |
 
 ## Source Traceability
 

@@ -12,6 +12,26 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+func TestRedactURI(t *testing.T) {
+	tests := []struct {
+		name string
+		uri  string
+		want string
+	}{
+		{name: "no credentials", uri: "mongodb://localhost:27017", want: "mongodb://localhost:27017"},
+		{name: "credentials redacted", uri: "mongodb://user:pass@db.example.com:27017", want: "mongodb://***@db.example.com:27017"},
+		{name: "no scheme", uri: "localhost:27017", want: "localhost:27017"},
+		{name: "at sign in password redacted", uri: "mongodb+srv://u:p@ss@db.example.com", want: "mongodb+srv://***@db.example.com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := redactURI(tt.uri); got != tt.want {
+				t.Errorf("redactURI(%q) = %q, want %q", tt.uri, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCountUsersLoop(t *testing.T) {
 	errBoom := errors.New("boom")
 	testInterval := 10 * time.Millisecond

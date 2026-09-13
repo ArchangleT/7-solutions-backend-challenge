@@ -4,7 +4,7 @@
 
 - **Database**: MongoDB (document)
 - **Client**: official `go.mongodb.org/mongo-driver/v2`
-- **Database name**: จาก config (`MongoDatabase`, default `user_mgr` — ดู config)
+- **Database name**: จาก config (`MongoDatabase`, default `userdb` — ดู config)
 - **Collection**: `users`
 
 ## Entities

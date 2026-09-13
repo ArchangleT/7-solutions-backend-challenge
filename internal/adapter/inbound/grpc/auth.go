@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -10,6 +11,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc/userv1"
 	"github.com/7-solutions/backend-challenge/internal/application/ports"
 	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
 )
@@ -28,7 +30,7 @@ type contextKey string
 // stays public. The authenticated user ID is stored on the context.
 func tokenAuth(tokens ports.TokenManager) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		if info.FullMethod == userv1GetUserFullMethod {
+		if info.FullMethod == userv1.UserService_GetUser_FullMethodName {
 			userID, err := authenticate(ctx, tokens)
 			if err != nil {
 				return nil, err
@@ -65,10 +67,16 @@ func unauthorized() error {
 	return status.Error(codes.Unauthenticated, "missing or invalid authorization token")
 }
 
-const userv1GetUserFullMethod = "/userv1.UserService/GetUser"
+// UserIDFromContext returns the authenticated user ID stored on the context by
+// the auth interceptor, if any.
+func UserIDFromContext(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(userIDContextKey).(string)
+	return id, ok
+}
 
 // toServiceError translates domain errors into gRPC status codes. Unknown
-// errors become codes.Internal; their message is kept for debuggability.
+// errors become codes.Internal with a generic message so internal details are
+// never leaked to clients; the real error is logged server-side.
 func toServiceError(err error) error {
 	var validationErr *domain.ValidationError
 	switch {
@@ -81,6 +89,7 @@ func toServiceError(err error) error {
 	case errors.Is(err, domain.ErrInvalidID), errors.As(err, &validationErr):
 		return status.Error(codes.InvalidArgument, err.Error())
 	default:
-		return status.Error(codes.Internal, err.Error())
+		slog.Default().Error("unhandled service error", "error", err)
+		return status.Error(codes.Internal, "internal error")
 	}
 }

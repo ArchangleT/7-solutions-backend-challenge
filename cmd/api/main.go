@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -39,7 +40,7 @@ func main() {
 
 	client, err := db.Connect(ctx, cfg.MongoURI)
 	if err != nil {
-		logger.Error("failed to connect to mongodb", "uri", cfg.MongoURI, "error", err)
+		logger.Error("failed to connect to mongodb", "uri", redactURI(cfg.MongoURI), "error", err)
 		os.Exit(1)
 	}
 	defer client.Disconnect(context.WithoutCancel(ctx))
@@ -113,4 +114,19 @@ func countUsersLoop(ctx context.Context, svc *statusdb.Service, logger *slog.Log
 			logger.Info("total users", "count", total)
 		}
 	}
+}
+
+// redactURI strips any userinfo credentials out of a connection URI so they
+// never end up in logs.
+func redactURI(uri string) string {
+	scheme := strings.Index(uri, "://")
+	if scheme < 0 {
+		return uri
+	}
+	rest := uri[scheme+3:]
+	at := strings.LastIndex(rest, "@")
+	if at < 0 {
+		return uri
+	}
+	return uri[:scheme+3] + "***@" + rest[at+1:]
 }

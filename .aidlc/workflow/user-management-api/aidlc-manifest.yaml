@@ -3,11 +3,11 @@ feature: "user-management-api"
 language: "th"
 platform: "opencode"
 created: "2026-09-13T02:09:43+0700"
-updated: "2026-09-13T03:45:00+0700"
+updated: "2026-09-13T03:50:00+0700"
 state:
-  status: "active"
+  status: "completed"
   scope: "new"
-  sharedPhases: [context, requirements, design, tasks, implement, build]
+  sharedPhases: [context, requirements, design, tasks, implement, build, deploy]
   mode: null
   foundationSkipped: false
   implementationMode: "parallel"
@@ -34,8 +34,8 @@ artifacts:
     timestamp: "2026-09-13T03:35:00+0700"
     files: [build-report.md]
   deploy:
-    status: "draft"
-    timestamp: "2026-09-13T03:45:00+0700"
+    status: "approved"
+    timestamp: "2026-09-13T03:50:00+0700"
     files: [decisions-deploy.md, deploy-summary.md, .github/workflows/deploy.yml, docker-compose.yml, scripts/deploy.sh, .env.dev.example, .env.production.example, .dockerignore]
 implementation:
   totalTasks: 20

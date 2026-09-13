@@ -178,7 +178,7 @@ func TestWriteServiceError(t *testing.T) {
 			name:       "validation error → 400 with fields",
 			err:        &domain.ValidationError{Field: "name", Message: "is required"},
 			wantStatus: fiber.StatusBadRequest,
-			wantBody:   `{"error":"is required","fields":{"name":"is required"}}`,
+			wantBody:   `{"error":"validation error: name is required","fields":{"name":"is required"}}`,
 		},
 		{
 			name:       "invalid id → 400",

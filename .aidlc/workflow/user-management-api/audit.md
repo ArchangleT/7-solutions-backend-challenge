@@ -241,3 +241,35 @@
 **Action**: generation
 **Artifacts**: .github/workflows/deploy.yml (extend), docker-compose.yml (api-green + image tag), scripts/deploy.sh, .env.dev.example, .env.production.example, .dockerignore, deploy-summary.md
 **Outcome**: Generated 6 deployment files for GitHub Actions targeting Containers (docker-compose). 2 environments configured (dev auto, prod manual-approval blue-green).
+
+### [2026-09-13] Deploy: Complete
+
+**Phase**: deploy
+**Action**: deploy-complete
+**Artifacts**: deploy-summary.md, .github/workflows/deploy.yml, docker-compose.yml, scripts/deploy.sh, .env.dev.example, .env.production.example, .dockerignore
+**Outcome**: Deployment configuration finalized. Workflow complete. 2 environments configured, 1 secret required (JWT_SECRET) + optional MONGO_URI.
+
+### [2026-09-13] Workflow Complete
+
+**Feature**: user-management-api
+**Duration**: 2026-09-13T02:09 → 2026-09-13T03:50 (+0700)
+**Phases completed**: context, requirements, design, tasks, implement, build, deploy
+**Mode**: comprehensive
+**Units**: 0 (non-incremental)
+**Final status**: All phases complete. Deployment configured for Containers (Docker) via GitHub Actions (blue-green). Build verified: 20/20 tasks, 16/16 US, coverage 87.6%.
+
+### [2026-09-13] Code Review: Findings
+
+**Phase**: code-review (post-completion)
+**Action**: review
+**Artifacts**: code-review.md
+**Outcome**: Full review (26 files). 0 Critical / 3 Major (gRPC error leak, no authorization, config ไม่ fail-fast) / 5 Minor (error-format & doc drifts, URI ใน log, method literal) / 4 Suggestions (rate limit, JWT revoke, enumeration, pagination). Coverage 87.6% ✓. Design compliance: ส่วนใหญ่ตรง (document-drift 3 จุด + 3 Major).
+
+### [2026-09-13] Code Review: Fixes Applied ("fix all")
+
+**Phase**: code-review-fixes
+**Action**: apply-fixes
+**Artifacts**: code-review.md, middleware/rate_limit.go (+test), auth_middleware.go (RequireOwner), grpc/{auth,server}.go, http/server.go, helpers/utils.go, config/config.go, cmd/api/main.go, specs (api-spec.md, data-model.md)
+**Outcome**: แก้ทั้งหมด 3 Major + 5 Minor + 1 Suggestion (rate limit `/auth/login` per-IP 10/min → 429). 🏗️ เปลี่ยน behavior: GET/PUT/DELETE `/:id` จำกัดเฉพาะเจ้าของ (403/PermissionDenied), validation error envelope มีข้อความเต็ม (`validation error: <field> <msg>`), config fail-fast เมื่อ secret ว่าง, gRPC internal error ไม่ leak, URI ถูก redact ใน log, ใช้ constant `FullMethodName`.
+**Deferred (product decision)**: SG-2 JWT revoke/refresh, SG-3 email enumeration, SG-4 pagination — เปลี่ยน public contract ตาม MVP/design.
+**Gate**: `make test` ผ่าน 15 pkgs (coverage 86.1% ≥ 80%), `go vet` clean, `make build` OK, `gofmt -l` clean.

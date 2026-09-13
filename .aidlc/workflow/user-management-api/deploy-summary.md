@@ -1,47 +1,59 @@
-# Deploy Summary — user-management-api
+# Deployment Summary — user-management-api
 
 **Date**: 2026-09-13
-**Decisions**: D5 — GitHub Actions · Containers (docker-compose) · Blue-Green · dev + production · GitHub Secrets
-**Status**: ready for approval
+**CI/CD Platform**: GitHub Actions
+**Deployment Target**: Containers (Docker / docker-compose)
+**Strategy**: Blue-Green
 
-## Pipeline: `.github/workflows/deploy.yml`
+## Pipeline
 
-| Job | Trigger | Gate |
+| Stage | Trigger | Actions |
 |---|---|---|
-| `build` | push + PR | compile (`go build ./...`) + docker image build/push → GHCR |
-| `test` | push + PR | `go test ./...` + coverage gate ≥ 80% non-generated |
-| `quality` | push + PR | `go vet ./...` + gofmt check |
-| `deploy-dev` | push (non-main branches) | auto — `docker compose up -d api` + health smoke (`GET /health`) |
-| `deploy-prod` | push (main only) | **manual approval** — GitHub protected environment `production` → Blue-Green via `scripts/deploy.sh` |
+| Build | push + PR | `go build ./...` + docker image build/push → GHCR (`ghcr.io/<owner>/user-management-api:<sha>`) |
+| Test | After build | `go test ./...` + coverage gate ≥ 80% non-generated |
+| Quality | After test | `go vet ./...` + gofmt check |
+| Deploy (dev) | feature branch push | auto — `docker compose up -d api` + health smoke (`GET /health`) |
+| Deploy (production) | `main` push | manual approval (protected environment) — blue-green via `scripts/deploy.sh` |
 
-**Environment promotion (D5-5)**: feature branches → dev (auto) · `main` → production (manual approval via GitHub environment protection rules)
+## Environments
 
-## Deployment files
+| Environment | Branch | Promotion | URL |
+|---|---|---|---|
+| dev | feature branches | auto | http://<dev-host>:8080 (TBD per host) |
+| production | `main` | manual approval (GitHub required reviewers) | http://<prod-host>:8080 (TBD per host) |
 
-| File | Role |
+## Files Generated
+
+| File | Purpose |
 |---|---|
-| `docker-compose.yml` | extends existing — `image` tag substitution (`IMAGE_NAME:IMAGE_TAG`) + `api-green` standby (profile `deploy`) for blue-green; adds `APP_ENV` |
-| `scripts/deploy.sh` | blue-green deploy: standby → pre-switch health + smoke → switch traffic → decommission; `rollback` = instant switch to previous `IMAGE_TAG` |
-| `.env.dev.example` / `.env.production.example` | env templates — real secrets ตั้งใน GitHub Secrets (จี้ placeholder ไว้) |
-| `.dockerignore` | build context optimization (excludes secrets, docs, test files, .aidlc) |
+| `.github/workflows/deploy.yml` | CI/CD pipeline (build/test/quality/dev/prod blue-green) |
+| `docker-compose.yml` | extend — `IMAGE_NAME:IMAGE_TAG` + `api-green` standby (profile `deploy`) + `APP_ENV` |
+| `scripts/deploy.sh` | blue-green deploy + rollback helper |
+| `.env.dev.example` / `.env.production.example` | environment templates (secrets เป็น placeholder) |
+| `.dockerignore` | build context optimization |
+| `.aidlc/workflow/user-management-api/decisions-deploy.md` | D5 decision gate |
+| `.aidlc/workflow/user-management-api/deploy-summary.md` | this summary |
 
-## Secrets (GitHub Secrets — ต้อง configure เอง)
+## Secrets Required
 
-- `JWT_SECRET` — production JWT signing secret (ยืนยันมาใช้ใน `deploy-prod`)
-- `MONGO_URI` — ยังไม่ถูกอ้างใน workflow (ใช้ compose default `mongo`); รองรับ override ผ่าน env
-- ตัวแปรอื่น (`IMAGE_NAME`) เป็น default จาก repo env — ปรับได้ตาม owner/repo
+| Secret | Environment | Where to Configure |
+|---|---|---|
+| `JWT_SECRET` | production | GitHub repo → Settings → Secrets and variables → Actions |
+| `MONGO_URI` | production (optional override) | GitHub repo secrets (default ใน compose ชี้ไป `mongo` service) |
 
-## Rollback strategy (D5-7)
+> Dev ใช้ค่า default ใน `docker-compose.yml`; production ต้องตั้ง `JWT_SECRET` ก่อน deploy-prod รอบแรก
 
-Blue-green instant switch: ถ้า prod deploy ล้ม เหลือ `scripts/deploy.sh rollback` กับ `IMAGE_TAG=<previous-sha>` เปลี่ยนกลับทันที (seconds) — ขั้นตอนรันผ่าน job `Rollback procedure`
+## Rollback
 
-## Monitoring & health (D5-8)
+- **Strategy**: Blue-Green instant switch
+- **Trigger**: `APP_ENV=prod IMAGE_NAME=<name> IMAGE_TAG=<previous-sha> JWT_SECRET=<...> bash scripts/deploy.sh rollback`
+- **Recovery time**: seconds (เปลี่ยนเพียง container ต้นทาง traffic)
 
-- health endpoint check ในทุก deploy-step (`GET /health` → wget/curl)
-- post-deploy smoke: standby health + active health หลัง switch
-- กรณีต้องการสัญญาณเพิ่ม (5xx rate, p95): เพิ่ม monitoring stack — pending ตาม D5-8
+## Post-Deployment Checklist
 
-## Assumptions
-
-- Deploy jobs ใช้ runner ที่มี Docker access ไปยัง target host (self-hosted runner / `DOCKER_HOST`) — เหมาะกับ single-host docker-compose deployment
-- `environment: production` ต้องตั้ง required reviewers ใน GitHub repo settings เพื่อบังคับ manual approval
+- [x] Configure secrets in CI (รายการข้างบน — ต้องตั้งที่ GitHub เอง)
+- [ ] Verify deployment target access/credentials (self-hosted runner / DOCKER_HOST)
+- [ ] Set up monitoring/alerting: `GET /health` smoke มีใน pipeline แล้ว; 5xx rate + p95 ยัง pending (D5-8)
+- [ ] Run first deployment to dev (push feature branch)
+- [ ] Verify health checks respond (wget/curl smoke ในทุก step)
+- [ ] Document runbook for on-call (optional)

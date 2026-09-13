@@ -55,7 +55,7 @@ func WriteServiceError(c *fiber.Ctx, logger *slog.Logger, err error) error {
 	var verr *domain.ValidationError
 	if errors.As(err, &verr) {
 		return c.Status(fiber.StatusBadRequest).JSON(errorBody{
-			Error:  verr.Message,
+			Error:  err.Error(),
 			Fields: map[string]string{verr.Field: verr.Message},
 		})
 	}

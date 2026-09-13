@@ -129,6 +129,15 @@ func load(path, env string) (Config, error) {
 	cfg.MongoURI = getenv("MONGO_URI", firstNonEmpty(cfg.MongoURI, y.Database.URI))
 	cfg.JWTSecret = getenv("JWT_SECRET", firstNonEmpty(cfg.JWTSecret, y.JWT.Secret))
 
+	// Secrets are mandatory: an empty URI or JWT secret would fail later in a
+	// confusing way (or worse, sign tokens with an empty key). Fail fast.
+	if strings.TrimSpace(cfg.MongoURI) == "" {
+		return Config{}, fmt.Errorf("missing required config: MONGO_URI is not set (via YAML, secret_{env}.go or env var)")
+	}
+	if strings.TrimSpace(cfg.JWTSecret) == "" {
+		return Config{}, fmt.Errorf("missing required config: JWT_SECRET is not set (via YAML, secret_{env}.go or env var)")
+	}
+
 	return cfg, nil
 }
 
