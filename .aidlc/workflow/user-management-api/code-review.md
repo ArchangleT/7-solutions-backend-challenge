@@ -73,6 +73,29 @@
 
 ---
 
+## Re-Review รอบ 3 (2026-09-13 · หลัง commit `aba6a04`)
+
+**ขอบเขต**: verify การแก้ MN-6/7/8 + MJ-4 (อ่านโค้ดใหม่, smoke test prod config, re-run gates)
+
+**ยืนยันผลรอบ 2**:
+
+| ID | สถานะ | หลักฐาน |
+|----|--------|---------|
+| CODE-MN-6 | ✅ | `http.WithTrustedProxy` ตั้ง `EnableTrustedProxyCheck`+`TrustedProxies` บน fiber.Config ก่อน `fiber.New`; main wire จาก cfg; **Fiber semantics ปลอดภัยเมื่อ `trust_proxy` เปิดแต่ `trusted_proxies` ว่าง** (ข้าม header spoof ทั้งหมด → คิดเป็น RemoteIP, ไม่มีช่องโหว่); `trusted_proxies: []` normalize เป็น nil สม่ำเสมอ |
+| CODE-MN-7 | ✅ | `prune` sweep เสี่ยง ≤1 ครั้ง/window, lock ครอบทั้ง sweep; test window-expiry reset ผ่าน; ไม่มีกฎแยก state leak |
+| CODE-MN-8 | ✅ | openapi 403/429 + `make codegen` (เพิ่ม alias `Forbidden`/`TooManyRequests`, ลบ `Unprocessable` ค้าง); `rg Unprocessable` = 0 refs ตกค้าง |
+| CODE-MJ-4 | ✅ | smoke: `go run` prod load → secrets จาก `secret_prod.go` resolve ✅, `MONGO_URI` env override ✅, parse trust + normalize ✅; Dockerfile `COPY config/*.yaml` → image boot ได้ (manual verify; docker run ไม่อยู่ใน env review) |
+
+**Gate**: `make test` ✅ ผ่านครบ (total coverage 85.4% ≥ 80%) · `go vet` clean · `make build` OK · `gofmt -l` clean · tree clean (`aba6a04`)
+
+**Observations (ไม่มี finding ใหม่)**:
+- R3-OBS-1 💡 rate limit เป็น in-memory per-process (ออกแบบ MVP เดี่ยว) — ถ้าต้อง scale หลาย instance ต้อง shared store (เช่น Redis) — จดไว้สำหรับอนาคต
+- R3-OBS-2 💡 prod config ถูก verify แบบ manual (ไม่มี test อัตโนมัติของ `LoadFrom("config_prod.yaml","prod")`) — เสนอเพิ่ม 1 test ขนาดเล็กใน `config_test.go` เพื่อกัน regression (เล็กมาก, รอคำสั่ง)
+
+**สรุป round 3**: ทุก finding รอบที่แล้ว **resolved** — ไม่มี Critical/Major/Minor ใหม่; เหลือแค่ design observations (OBS-1, SG-2/3/4) + รายการเล็ก (OBS-2)
+
+---
+
 ---
 
 ## 🔴 Critical

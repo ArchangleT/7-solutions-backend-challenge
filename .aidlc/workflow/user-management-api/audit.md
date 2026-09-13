@@ -293,3 +293,10 @@
 - MN-8 ✅ openapi เพิ่ม `Forbidden`(403) + `TooManyRequests`(429) → `make codegen` (gen เพิ่ม alias, ลบ Unprocessable ค้าง)
 - ⚠️ พบใหม่ระหว่างแก้ **CODE-MJ-4** 🔴 Major: runtime image ไม่มี config yaml (+ไม่มี `config_prod.yaml`) → prod/dev container boot ไม่ติด → แก้พร้อมกัน (สร้าง `config_prod.yaml` + Dockerfile `COPY config/*.yaml`)
 - gate: make test ผ่านครบ (coverage 85.4%), go vet clean, make build OK, gofmt clean
+
+### [2026-09-13] Code Review: Re-Review (round 3)
+
+**Phase**: code-review-fixes
+**Action**: re-review
+**Artifacts**: code-review.md
+**Outcome**: verify รอบ `aba6a04` — MN-6/7/8 + MJ-4 resolved ทั้งหมด (fiber trusted-proxy semantics safe เมื่อ whitelist ว่าง, prune sweep ≤1/window, codegen สะอาดไม่มี Unprocessable ค้าง, prod load smoke ผ่าน: secrets resolve + env override + trust normalize). Gate: make test ผ่าน (85.4%), vet/build/gofmt clean, tree clean. ไม่มี finding ใหม่ (0 Critical/Major/Minor) — เหลือ observations: OBS-1 (rate limit per-process, ต้อง shared store เมื่อ scale-out), OBS-2 (prod config ไม่มี test อัตโนมัติ).
