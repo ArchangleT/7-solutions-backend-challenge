@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	user "github.com/7-solutions/backend-challenge/internal/domain/user"
+	user "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -9,7 +9,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/7-solutions/backend-challenge/internal/application/ports"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/ports"
 )
 
 // UserIDKey is the request-locals key under which the authenticated user ID is

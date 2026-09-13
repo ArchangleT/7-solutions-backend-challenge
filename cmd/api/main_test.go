@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/7-solutions/backend-challenge/internal/application/services/statusdb"
-	statusdbmocks "github.com/7-solutions/backend-challenge/internal/mocks/statusdb"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/statusdb"
+	statusdbmocks "github.com/ArchangleT/7-solutions-backend-challenge/internal/mocks/statusdb"
 	"go.uber.org/mock/gomock"
 )
 

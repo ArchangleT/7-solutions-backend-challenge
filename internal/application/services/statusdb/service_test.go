@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	statusdbmocks "github.com/7-solutions/backend-challenge/internal/mocks/statusdb"
+	statusdbmocks "github.com/ArchangleT/7-solutions-backend-challenge/internal/mocks/statusdb"
 	"go.uber.org/mock/gomock"
 )
 

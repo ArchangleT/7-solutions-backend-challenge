@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/7-solutions/backend-challenge/internal/application/ports"
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/ports"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 )
 
 const passwordMinLength = 8

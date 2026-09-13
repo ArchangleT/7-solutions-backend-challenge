@@ -12,8 +12,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/jwt"
-	"github.com/7-solutions/backend-challenge/internal/application/services/user"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/outbound/jwt"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/user"
 )
 
 const wiringTestSecret = "test-secret"

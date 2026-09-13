@@ -5,7 +5,7 @@ package statusdb
 import (
 	"context"
 
-	domainstatusdb "github.com/7-solutions/backend-challenge/internal/domain/statusdb"
+	domainstatusdb "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/statusdb"
 )
 
 // Service exposes the count use case for the users collection.

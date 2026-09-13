@@ -6,12 +6,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/health-check"
-	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/helpers"
-	userh "github.com/7-solutions/backend-challenge/internal/adapter/inbound/http/user"
-	"github.com/7-solutions/backend-challenge/internal/adapter/middleware"
-	"github.com/7-solutions/backend-challenge/internal/application/ports"
-	"github.com/7-solutions/backend-challenge/internal/application/services/user"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/http/health-check"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/http/helpers"
+	userh "github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/http/user"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/middleware"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/ports"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/user"
 )
 
 // Server holds the HTTP plumbing shared by the feature handlers. It implements

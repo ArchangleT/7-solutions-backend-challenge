@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 )
 
 func TestToOutput(t *testing.T) {

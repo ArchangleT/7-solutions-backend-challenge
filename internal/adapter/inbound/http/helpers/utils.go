@@ -13,7 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 )
 
 // MaxBodyBytes caps request bodies at 1 MiB.

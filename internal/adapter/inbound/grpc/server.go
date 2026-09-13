@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc/userv1"
-	"github.com/7-solutions/backend-challenge/internal/application/ports"
-	"github.com/7-solutions/backend-challenge/internal/application/services/user"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/grpc/userv1"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/ports"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/user"
 )
 
 // Server implements userv1.UserServiceServer, translating between the gRPC

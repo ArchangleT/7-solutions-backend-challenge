@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 )
 
 const usersCollection = "users"

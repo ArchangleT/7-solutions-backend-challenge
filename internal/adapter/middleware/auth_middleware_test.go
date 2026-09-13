@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/mock/gomock"
 
-	portsmocks "github.com/7-solutions/backend-challenge/internal/mocks/ports"
+	portsmocks "github.com/ArchangleT/7-solutions-backend-challenge/internal/mocks/ports"
 )
 
 func TestAuthenticate(t *testing.T) {

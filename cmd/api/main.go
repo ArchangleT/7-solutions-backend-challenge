@@ -14,15 +14,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/7-solutions/backend-challenge/config"
-	grpcapi "github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc"
-	httpapi "github.com/7-solutions/backend-challenge/internal/adapter/inbound/http"
-	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/bcrypt"
-	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/jwt"
-	outmongodb "github.com/7-solutions/backend-challenge/internal/adapter/outbound/mongodb"
-	"github.com/7-solutions/backend-challenge/internal/application/services/statusdb"
-	"github.com/7-solutions/backend-challenge/internal/application/services/user"
-	"github.com/7-solutions/backend-challenge/internal/infrastructure/db"
+	"github.com/ArchangleT/7-solutions-backend-challenge/config"
+	grpcapi "github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/grpc"
+	httpapi "github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/http"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/outbound/bcrypt"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/outbound/jwt"
+	outmongodb "github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/outbound/mongodb"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/statusdb"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/user"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/infrastructure/db"
 )
 
 func main() {

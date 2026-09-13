@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
-	portsmocks "github.com/7-solutions/backend-challenge/internal/mocks/ports"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
+	portsmocks "github.com/ArchangleT/7-solutions-backend-challenge/internal/mocks/ports"
 	"go.uber.org/mock/gomock"
 )
 

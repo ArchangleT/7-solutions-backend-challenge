@@ -12,7 +12,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 )
 
 func newTestApp(t *testing.T, decode func(c *fiber.Ctx) (bool, error)) *fiber.App {

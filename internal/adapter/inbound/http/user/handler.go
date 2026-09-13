@@ -7,7 +7,7 @@ package user
 import (
 	"github.com/gofiber/fiber/v2"
 
-	appuser "github.com/7-solutions/backend-challenge/internal/application/services/user"
+	appuser "github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/user"
 )
 
 // Responder abstracts request decoding and error writing so the handlers can

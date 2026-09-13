@@ -8,7 +8,7 @@ package userv1;
 // go_package path determines the output directory of protoc. The generated
 // stubs live alongside the gRPC inbound adapter in
 // internal/adapter/inbound/grpc/userv1.
-option go_package = "github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc/userv1";
+option go_package = "github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/grpc/userv1";
 
 // UserService exposes user creation and retrieval over gRPC.
 service UserService {

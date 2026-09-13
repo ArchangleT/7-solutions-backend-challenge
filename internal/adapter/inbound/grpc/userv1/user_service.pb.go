@@ -220,7 +220,7 @@ const file_user_service_proto_rawDesc = "" +
 	"\vUserService\x125\n" +
 	"\n" +
 	"CreateUser\x12\x19.userv1.CreateUserRequest\x1a\f.userv1.User\x12/\n" +
-	"\aGetUser\x12\x16.userv1.GetUserRequest\x1a\f.userv1.UserBOZMgithub.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc/userv1b\x06proto3"
+	"\aGetUser\x12\x16.userv1.GetUserRequest\x1a\f.userv1.UserBZZXgithub.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/grpc/userv1b\x06proto3"
 
 var (
 	file_user_service_proto_rawDescOnce sync.Once

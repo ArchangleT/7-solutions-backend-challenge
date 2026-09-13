@@ -5,7 +5,7 @@ Engineer's reference สำหรับ scaffold และ daily development
 ## Code Organization
 
 - **Architecture pattern**: Hexagonal (Ports & Adapters) — dependency: `adapter → application → domain`; outbound adapters implement domain/app ports
-- **Repository type**: Single repo (หนึ่ง module `github.com/7-solutions/backend-challenge`)
+- **Repository type**: Single repo (หนึ่ง module `github.com/ArchangleT/7-solutions-backend-challenge`)
 
 ### Directory structure
 

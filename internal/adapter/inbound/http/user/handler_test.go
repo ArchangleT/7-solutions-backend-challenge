@@ -13,11 +13,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	httpapi "github.com/7-solutions/backend-challenge/internal/adapter/inbound/http"
-	"github.com/7-solutions/backend-challenge/internal/adapter/middleware"
-	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/jwt"
-	"github.com/7-solutions/backend-challenge/internal/application/services/user"
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
+	httpapi "github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/http"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/middleware"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/outbound/jwt"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/user"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 )
 
 // fakeService implements user.Service for handler-level tests.

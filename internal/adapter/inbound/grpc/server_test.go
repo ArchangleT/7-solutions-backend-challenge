@@ -14,11 +14,11 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	grpcapi "github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc"
-	grpcuserv1 "github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc/userv1"
-	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/jwt"
-	"github.com/7-solutions/backend-challenge/internal/application/services/user"
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
+	grpcapi "github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/grpc"
+	grpcuserv1 "github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/grpc/userv1"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/outbound/jwt"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/services/user"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 )
 
 const testSecret = "test-secret"

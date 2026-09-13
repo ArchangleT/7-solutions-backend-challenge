@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/7-solutions/backend-challenge/internal/adapter/outbound/jwt"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/outbound/jwt"
 )
 
 // TestAuthenticate drives the token extraction and validation logic of the gRPC

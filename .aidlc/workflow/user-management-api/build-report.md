@@ -2,7 +2,7 @@
 
 **Date**: 2026-09-13
 **Platform**: opencode
-**Ecosystem**: Go 1.26.4 (module `github.com/7-solutions/backend-challenge`)
+**Ecosystem**: Go 1.26.4 (module `github.com/ArchangleT/7-solutions-backend-challenge`)
 **Status**: passed
 
 ## Build

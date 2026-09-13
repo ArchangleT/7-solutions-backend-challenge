@@ -11,9 +11,9 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/7-solutions/backend-challenge/internal/adapter/inbound/grpc/userv1"
-	"github.com/7-solutions/backend-challenge/internal/application/ports"
-	domain "github.com/7-solutions/backend-challenge/internal/domain/user"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/adapter/inbound/grpc/userv1"
+	"github.com/ArchangleT/7-solutions-backend-challenge/internal/application/ports"
+	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
 )
 
 const (

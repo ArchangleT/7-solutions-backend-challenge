@@ -4,14 +4,14 @@ Guidance for AI agents and contributors working in this repository.
 
 ## Project Overview
 
-Backend Golang coding test at `https://github.com/7-solutions/backend-challenge` with two parts:
+Backend Golang coding test at `https://github.com/ArchangleT/7-solutions-backend-challenge` with two parts:
 
 1. **User Management API** (implemented): RESTful user CRUD built with Go, MongoDB, JWT (HS256), clean/hexagonal architecture, plus a bonus gRPC service.
 2. **Lottery Search System** (design-only): a wildcard-matching search design for 10M+ six-digit tickets. **Do not write code for this part** — only design documents.
 
 ## Tech Stack
 
-- Go 1.26.4, module `github.com/7-solutions/backend-challenge`
+- Go 1.26.4, module `github.com/ArchangleT/7-solutions-backend-challenge`
 - HTTP: Fiber v2 with oapi-codegen v2 generated server (`fiber-server`)
 - Persistence: MongoDB via the official `go.mongodb.org/mongo-driver/v2`
 - Auth: `golang-jwt/jwt/v5`, HMAC HS256, 24h TTL
