@@ -17,9 +17,9 @@ func TestCountUsersLoop(t *testing.T) {
 	testInterval := 10 * time.Millisecond
 
 	tests := []struct {
-		name        string
-		setupMock   func(*statusdbmocks.MockRepository)
-		ctxSetup    func() (context.Context, context.CancelFunc)
+		name      string
+		setupMock func(*statusdbmocks.MockRepository)
+		ctxSetup  func() (context.Context, context.CancelFunc)
 	}{
 		{
 			name: "logs count every tick",

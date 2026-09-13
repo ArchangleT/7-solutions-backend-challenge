@@ -179,6 +179,7 @@
   "active": "c2178a2ed669771c",
   "lastOpenFiles": [
     "coverage.out.filtered",
+    "coverage.out",
     "internal/adapter/inbound/grpc/auth_test.go",
     "internal/adapter/inbound/http/server_test.go",
     "2026-09-13.md",
@@ -190,7 +191,6 @@
     "internal/domain/user/entity_test.go",
     "internal/adapter/inbound/grpc/server_test.go",
     "internal/adapter/inbound/grpc/auth.go",
-    "internal/adapter/inbound/grpc/server.go",
     "documents/summary/user-management-api/README.md",
     "documents/requirements/user-management-api/tech-stack.md",
     "documents/user-management-api/README.md",
