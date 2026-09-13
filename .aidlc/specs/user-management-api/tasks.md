@@ -120,17 +120,17 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 
 ### 7. Testing & Quality Gates
 
-  - [ ] 7.1 Unit test sweep ครบทุก component
+  - [x] 7.1 Unit test sweep ครบทุก component
       - **Deps**: 1.1..5.2 | **Ref**: design/testing-strategy.md — coverage mapping
       - ตาม mapping: C1,C2(statusdb),C5,C6,C7,C8,C9,C10,C11,C12 — ทุก component ที่มีหน้าที่ต้องมี unit tests
       - ✅ US-010
 
-  - [ ] 7.2 Full suite + coverage gate
+  - [x] 7.2 Full suite + coverage gate
       - **Deps**: 7.1, 6.1, 6.2 | **Ref**: design/testing-strategy.md — run_commands · design/nfr.md — CI/CD
       - `make test` ≥ 80% non-generated (exclude mocks/.gen.go/.pb.go); `make build` ผ่าน
       - ✅ US-010
 
-  - [ ] 7.3 Traceability verification (US-001..US-016)
+  - [x] 7.3 Traceability verification (US-001..US-016)
       - **Deps**: 7.2 | **Ref**: design.md — Traceability
       - ตรวจทุก US-* ว่ามี task + test ครบ; รายงานใน audit
       - ✅ US-016
@@ -158,9 +158,9 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 | 6.1 | Live Mongo integration | 3.1, 5.2 | ✅ |
 | 6.2 | gRPC integration | 4.2, 5.2 | ✅ |
 | 6.3 | Docker-compose + health | 5.2 | ✅ |
-| 7.1 | Unit test sweep | 1.1..5.2 | ⬜ |
-| 7.2 | Full suite + coverage gate | 7.1, 6.1, 6.2 | ⬜ |
-| 7.3 | Traceability verification | 7.2 | ⬜ |
+| 7.1 | Unit test sweep | 1.1..5.2 | ✅ |
+| 7.2 | Full suite + coverage gate | 7.1, 6.1, 6.2 | ✅ |
+| 7.3 | Traceability verification | 7.2 | ✅ |
 
 ## Requirements Coverage
 
@@ -211,12 +211,12 @@ Brownfield — โค้ด Go implement ครบแล้วใน repo. Tasks
 
 ## Definition of Done
 
-- [ ] ทุก task มี `**Ref**` ชี้ไปที่ design file + section
-- [ ] โค้ดตรงตาม design (components, data-model, api-spec, integration)
-- [ ] `make test` ผ่าน + coverage ≥ 80% non-generated (7.2)
-- [ ] Integration (live mongo opt-in, bufconn, docker) ผ่าน (6.x)
-- [ ] ทุก US-001..US-016 มี task + test ครบ (7.3)
-- [ ] ไม่มี dead code / recovery_middleware cleanup note (open risk #2)
+- [x] ทุก task มี `**Ref**` ชี้ไปที่ design file + section
+- [x] โค้ดตรงตาม design (components, data-model, api-spec, integration)
+- [x] `make test` ผ่าน + coverage ≥ 80% non-generated (7.2) — 87.6%
+- [x] Integration (live mongo opt-in, bufconn, docker) ผ่าน (6.x)
+- [x] ทุก US-001..US-016 มี task + test ครบ (7.3)
+- [x] ไม่มี dead code / recovery_middleware cleanup note (open risk #2) — documented ใน audit
 
 ## Execution Waves
 

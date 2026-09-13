@@ -150,13 +150,12 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "2026-09-13.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of 2026-09-13"
+              "title": "Outline"
             }
           }
         ]
@@ -177,21 +176,21 @@
       "bases:Create new base": false
     }
   },
-  "active": "c6f168e4f169a5af",
+  "active": "c2178a2ed669771c",
   "lastOpenFiles": [
     "coverage.out.filtered",
+    "internal/adapter/inbound/grpc/auth_test.go",
+    "internal/adapter/inbound/http/server_test.go",
+    "2026-09-13.md",
     "cmd/api/main_test.go",
     "outbound_coverage.out",
     "internal/adapter/middleware/auth_middleware_test.go",
     "internal/adapter/middleware/log_middleware_test.go",
-    "2026-09-13.md",
     "AGENTS.md",
     "internal/domain/user/entity_test.go",
     "internal/adapter/inbound/grpc/server_test.go",
     "internal/adapter/inbound/grpc/auth.go",
     "internal/adapter/inbound/grpc/server.go",
-    "internal/adapter/inbound/grpc/userv1/user_service_grpc.pb.go",
-    "internal/adapter/inbound/grpc/userv1/user_service.pb.go",
     "documents/summary/user-management-api/README.md",
     "documents/requirements/user-management-api/tech-stack.md",
     "documents/user-management-api/README.md",

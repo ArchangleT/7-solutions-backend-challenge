@@ -150,3 +150,59 @@
 **Action**: wave 4 executed (parallel mode, 1 sub-agent — Phase 6)
 **Artifacts**: Phase 6: docker-compose.yml (healthcheck for api), Dockerfile (wget for healthcheck), Makefile (test-integration runs live MongoDB + bufconn tests), internal/adapter/inbound/grpc/server_test.go (bufconn gRPC tests), internal/adapter/outbound/mongodb/user_repository_integration_test.go (live MongoDB tests)
 **Outcome**: pass — `make test` OK (81.3% coverage), `make build` OK. 85% overall progress. Conflicts: none. Coverage: 81.3% (exceeds 80% target).
+
+### Traceability Verification
+
+**When**: 2026-09-13T11:54:23+0700 · **Phase**: build (7.3) · **Reference**: `.aidlc/specs/user-management-api/design.md` — Traceability · `.aidlc/specs/user-management-api/tasks.md` — Requirements Coverage
+
+**Summary**: cross-check US-001..US-016 จาก Requirements Coverage table กับโค้ดจริง + test suite ที่รันใน phase 7 (`make test`, `make build`) — พบ gap ด้าน coverage โค้ด 2 จุด (C5 HTTP wiring, C6 gRPC auth helper) ปิดเรียบร้อยใน 7.1; coverage ขึ้นจาก 81.3% → **87.6%** (non-generated, gate ≥ 80%) และ `make build` ผ่าน
+
+**Verification matrix (16/16 covered)**:
+
+| US-ID | Requirements Coverage tasks | Verification (code + tests) | Status |
+|-------|------------------------------|------------------------------|--------|
+| US-001 User Model | 2.1 | `internal/domain/user/{entity,errors}.go` + `entity_test.go` (fields, sentinels `ErrNotFound`/`ErrDuplicateEmail`/`ErrInvalidCredentials`/`ErrInvalidID`, `ValidationError`) | ✅ |
+| US-002 Registration | 2.3, 4.1 | `services/user/service.go:Register` + `handler_test.go` (201/400/409) + `server_test.go` wiring POST /api/v1/users | ✅ |
+| US-003 Login → JWT | 2.3, 3.2, 3.3, 4.1 | `service.go:Login` + `outbound/jwt/jwt_test.go` (tamper/expired/issuer/alg) + `bcrypt/bcrypt_test.go` + handler 200/401 | ✅ |
+| US-004 JWT middleware | 4.1, 3.2 | `middleware/auth_middleware.go` + `auth_middleware_test.go` (100%) + handler `TestProtectedEndpoints_RequireAuth` + wiring auth-reject test | ✅ |
+| US-005 Get/List | 2.3, 3.1, 4.1 | service `GetByID`/`List` + mongo repo + handler 200/404/400 + `TestList_ServiceError` (เพิ่ม 7.1) | ✅ |
+| US-006 Update/Delete | 2.3, 3.1, 4.1 | service `Update`/`Delete` + mongo repo + handler 200/400/404/409/204 | ✅ |
+| US-007 MongoDB persistence | 3.1, 1.2, 6.1 | `adapter/outbound/mongodb/user_repository_test.go` (fake, CRUD+dup-key+not-found 100%) + `infrastructure/db/mongodb_test.go` + opt-in `user_repository_integration_test.go` (`make test-integration`) | ✅ |
+| US-008 Logging middleware | 4.3 | `middleware/log_middleware.go` + `log_middleware_test.go` (success/missed route/fiber error/plain error — เพิ่ม plain-error case ใน 7.1) | ✅ |
+| US-009 Concurrency task | 5.1, 2.4, 6.1 | `cmd/api/main.go:countUsersLoop` + `main_test.go` (count/error/mid-cancel) + `statusdb/service_test.go` (gomock) | ✅ |
+| US-010 Unit testing | 7.1, 7.2 | Test-after sweep (7.1) + gate (7.2): 87.6% non-generated, all 12 components mapping ครบ | ✅ |
+| US-011 Containerization | 6.3 | Dockerfile + docker-compose (api+mongo:7+healthcheck) — verify ผ่าน 6.3 docker health; `GET /health` มี handler test ครอบคลุม | ✅ |
+| US-012 Interface abstraction | 2.2, 3.1, 4.1 | `application/ports/{hasher,token}.go`, domain repositories, `internal/mocks/` (gomock); service tests inject ports/fakes ไม่ผูก driver | ✅ |
+| US-013 Input validation | 2.3, 4.1 | `service.go` (name/email/password≥8, normalizeEmail/validEmail — utils 100%) + handler 400 envelope (`fields`) | ✅ |
+| US-014 Graceful shutdown | 5.2, 6.3 | `main.go` `signal.NotifyContext` → `app.Shutdown()`/`grpcSrv.GracefulStop()`/`client.Disconnect()`; count loop หยุดตาม `ctx.Done()` (ทดสอบใน `main_test.go`) | ✅ |
+| US-015 gRPC support | 4.2, 6.2 | `grpc/server.go` + `auth.go` + `userv1/` + bufconn `server_test.go` (CreateUser public, GetUser auth, error mapping) + `auth_test.go` (เพิ่ม 7.1) | ✅ |
+| US-016 Hexagonal architecture | 5.2, 2.2, 7.3 | dependency `adapter→application→domain` ตรวจแล้วไม่มี cycle; ports/adapters ทดสอบผ่าน fakes/gomock/handler tests | ✅ |
+
+**Actions ใน phase 7 (ทดสอบ-after, test files only)**:
+- เพิ่ม `internal/adapter/inbound/http/server_test.go` (package http) — ครอบ ServerInterface wiring (`apiHandler` 7 routes + auth guard + `NewServer`) ซึ่งก่อนหน้านี้เป็น C5 ตัวเดียวที่ coverage 0%
+- เพิ่ม `internal/adapter/inbound/grpc/auth_test.go` (in-package) — ครอบ `authenticate()` edge cases (no metadata, empty Bearer, non-Bearer header)
+- เพิ่ม `TestList_ServiceError` ใน `user/handler_test.go` + plain-error case ใน `log_middleware_test.go`
+
+**Quality gates (Task 7.2)**: `make test` ✅ ผ่าน (coverage 87.6% non-generated; exclude `internal/mocks/`, `server_openapi.gen.go`, `*.pb.go` ตาม Makefile) · `make build` ✅ ผ่าน (`bin/api_user_mgr` สร้างได้)
+
+**Gaps found & resolution**:
+- ผล coverage ทั้งหมดยังมี 4 พื้นที่ที่ zero โดยมีเหตุผลชัดเจน (ไม่ใช่ functional gap):
+  1. `cmd/api/main()` (42 stmts) — composition root ต้องเปิด network/DB จริง ไม่สมเหตุสมผลสำหรับ unit; พฤติกรรม verify ผ่าน handler/bufconn tests + 6.3 docker compose lifecycle
+  2. `internal/adapter/middleware/recovery_middleware.go` (6 stmts) — dead code ตาม design risk #2 (ยังไม่ถูก mount); ไม่ได้ test เพราะไม่ใช่ functional component และห้ามแก้ไฟล์ production ใน phase นี้ — คงค้างเป็น open risk
+  3. `mongodb.NewUserRepository` + `EnsureIndexes` (5 stmts) — รับ/สร้าง `*mongo.Collection` ชนิดคอนกรีต; driver v2 ไม่มี NewClient แบบไม่ connect และไม่มี mtest → unit ครอบไม่ได้; ครอบใน opt-in `user_repository_integration_test.go` (live) ตาม design C7 "unit + opt-in live"
+  4. `jwt.go` 2 branch ป้องกันที่ไม่สามารถเรียกถึงผ่าน public API ได้ (HS256 sign ไม่ error; `WithValidMethods` กรอง algorithm ก่อน keyfunc) + `db.ping` default closure (live-only)
+- ไม่พบ US ใดที่ขาด task หรือ test — 16/16 ครบ; ไม่พบ bug ใน production code
+
+**Files changed (phase 7, test files only)**:
+- `internal/adapter/inbound/http/server_test.go` (new)
+- `internal/adapter/inbound/grpc/auth_test.go` (new)
+- `internal/adapter/inbound/http/user/handler_test.go` (+`TestList_ServiceError`)
+- `internal/adapter/middleware/log_middleware_test.go` (+plain-error case)
+- `.aidlc/workflow/user-management-api/audit.md` (this entry)
+
+### [2026-09-13] Wave Complete: Wave 5
+
+**Phase**: implementation
+**Action**: wave 5 executed (parallel mode, 1 sub-agent)
+**Artifacts**: phase 7 Testing & Quality Gates — 3/3 tasks complete (`internal/adapter/inbound/http/server_test.go`, `internal/adapter/inbound/grpc/auth_test.go`, `internal/adapter/inbound/http/user/handler_test.go`, `internal/adapter/middleware/log_middleware_test.go`, tasks.md checkboxes)
+**Outcome**: pass, `make test` 87.6% non-generated coverage, `make build` OK, 100% progress, conflicts: none

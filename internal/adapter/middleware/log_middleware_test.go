@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,9 @@ func TestLoggingMiddleware(t *testing.T) {
 		{"unmatched route", "/missing", nil, fiber.StatusNotFound},
 		{"internal error", "/boom", func(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, "boom")
+		}, fiber.StatusInternalServerError},
+		{"plain error", "/plain", func(c *fiber.Ctx) error {
+			return errors.New("boom")
 		}, fiber.StatusInternalServerError},
 	}
 	for _, tt := range tests {

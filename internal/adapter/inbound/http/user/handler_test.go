@@ -235,6 +235,17 @@ func TestProtectedEndpoints_RequireAuth(t *testing.T) {
 	}
 }
 
+func TestList_ServiceError(t *testing.T) {
+	svc := &fakeService{err: errors.New("boom")}
+	app := newTestApp(t, svc)
+	token := issueToken(t)
+
+	status, _ := doRequest(t, app, "GET", "/api/v1/users", "", token)
+	if status != fiber.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", status)
+	}
+}
+
 func TestGetByID_NotFound(t *testing.T) {
 	svc := &fakeService{err: domain.ErrNotFound}
 	app := newTestApp(t, svc)
