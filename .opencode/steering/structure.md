@@ -6,7 +6,7 @@
 - Main entry points: `cmd/api/main.go` (Fiber + gRPC composition root)
 
 ## Repository
-- **Type**: Single — one Go module `github.com/7-solutions/backend-challenge`
+- **Type**: Single — one Go module `github.com/ArchangleT/7-solutions-backend-challenge`
 - **Root**: module root contains Makefile, go.mod/go.sum, Dockerfile, docker-compose.yml, OpenAPI/proto specs, docs, documents
 
 ## Key Directories

@@ -3,7 +3,7 @@ feature: "user-management-api"
 language: "th"
 platform: "opencode"
 created: "2026-09-13T02:09:43+0700"
-updated: "2026-09-13T12:32:55+0700"
+updated: "2026-09-13T12:54:22+07:00"
 state:
   status: "completed"
   scope: "new"
@@ -39,7 +39,7 @@ artifacts:
     files: [decisions-deploy.md, deploy-summary.md, .github/workflows/deploy.yml, docker-compose.yml, scripts/deploy.sh, .env.dev.example, .env.production.example, .dockerignore]
   code-review:
     status: "completed"
-    timestamp: "2026-09-13T12:32:55+0700"
+    timestamp: "2026-09-13T12:54:22+07:00"
     files: [code-review.md]
 implementation:
   totalTasks: 20

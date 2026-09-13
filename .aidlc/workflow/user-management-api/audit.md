@@ -307,3 +307,10 @@
 **Action**: apply-fixes
 **Artifacts**: config/config_test.go, code-review.md
 **Outcome**: เพิ่ม `TestLoadProductionYAML` — โหลด `config_prod.yaml` จริง ยืนยัน parse/trust/normalization/environment override เหนือ secret (กำหนด secrets ผ่าน env → ไม่พึ่ง git-ignored `secret_prod.go`). Gate: make test ผ่าน (85.4%), vet/build/gofmt clean.
+
+### [2026-09-13T13:05:00+07:00] Code Review: re-review round 4 (module rename)
+
+**Phase**: code-review
+**Action**: re-review-after-rename
+**Artifacts**: .aidlc/workflow/user-management-api/code-review.md, .opencode/instructions.md, .opencode/steering/structure.md
+**Outcome**: Diff review ครอบ commit 6e7cec8 (go module rename) — .pb.go regenerate via make proto, doc refs เก่า (MN-9) แก้แล้ว; gate ผ่าน (build/test/vet/gofmt); verdict READY คงเดิม

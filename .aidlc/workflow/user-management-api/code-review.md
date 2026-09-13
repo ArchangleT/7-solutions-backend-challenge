@@ -245,3 +245,27 @@
 - Hardening/bonus (ถ้ามีงบ): proxy-aware rate limiting เปิดผ่าน config (`trust_proxy`), shared rate-limit store เมื่อ scale-out, pagination
 
 *ปิดโดย aidlc-code-review v1.0.0 — บันทึกเป็น artifact `code-review` ใน manifest*
+
+---
+
+## Re-Review รอบ 4 (2026-09-13 · หลัง commit `6e7cec8` — go module rename)
+
+**ขอบเขต**: diff review ครอบเฉพาะการเปลี่ยน module path `github.com/7-solutions/backend-challenge` → `github.com/ArchangleT/7-solutions-backend-challenge` (30 ไฟล์: go.mod, imports `.go`, proto go_package, docs) + re-run gate
+
+**ตรวจสอบ**:
+- `go.mod` module ตรงใหม่ ✅ · imports ทั้งหมด `.go` ตรงใหม่ ✅ · `api/proto/user_service.proto` `go_package` ตรงใหม่ ✅
+- `userv1/user_service.pb.go` ถูก **regenerate ด้วย `make proto`** ไม่ใช่ sed ตรง descriptor bytes (regenerate จำเป็น — raw descriptor ฝัง go_package; แก้ตรงๆ จะทำให้ panic ที่ init) ✅ → `go test ./internal/adapter/inbound/grpc/...` ผ่าน
+- docs อ้างอิง module: AGENTS.md, `.aidlc/`, `.opencode/instructions.md`, `.opencode/steering/structure.md` ✅
+
+### Findings
+
+| ID | Severity | ไฟล์ | รายละเอียด | สถานะ |
+|----|----------|------|------------|-------|
+| CODE-MN-9 | 🟢 Minor | `.opencode/instructions.md:5`, `.opencode/steering/structure.md:9` | เอกสาร steering ยังอ้าง module path เก่า (ตกหล่นจากรอบ rename) | ✅ แก้ในรอบนี้ (อัปเดตเป็น path ใหม่) |
+| — | 💡 Info | `bin/api_user_mgr`, `coverage.out`, `outbound_coverage.out`, `.opencode/logs/` | ยังมี string เก่าใน binary/session log/coverage artifact — ไม่อยู่ใน scope (generate/regenerate เมื่อ build) | คงไว้ (ไม่ใช่ source) |
+
+**ไม่พบ**: reference เก่าค้างใน source/doc (grep ผ่านครบ) — เหลือแค่ binary/log/coverage artifact
+
+**Gate หลัง rename**: `go build ./...` ✅ · `go test ./...` ✅ ผ่านครบ (รวม gRPC post-regen) · `go vet ./...` clean · `gofmt -l` clean
+
+**สรุป round 4**: ไม่มี Critical/Major/Minor ใหม่จาก module rename — verdict เดิม **READY ✅** ยังคงอยู่; `artifacts.code-review` อัปเดต timestamp รอบนี้

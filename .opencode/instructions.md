@@ -2,7 +2,7 @@
 
 ## Tech Stack
 
-- Languages and frameworks: Go (module `github.com/7-solutions/backend-challenge`, go 1.26.4)
+- Languages and frameworks: Go (module `github.com/ArchangleT/7-solutions-backend-challenge`, go 1.26.4)
 - Database: MongoDB (official Go driver)
 - Authentication: JWT (HS256 / HMAC, secret-key signed)
 - Testing: Go standard `testing` package, MongoDB interactions mocked
