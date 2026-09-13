@@ -2,97 +2,119 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
 
 env:
-  # Project-specific environment variables
   APP_NAME: user-management-api
   GO_VERSION: '1.26.4'
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/user-management-api
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
-      - name: Install dependencies
-        run: go version
-
-      - name: Build
+      - name: Compile
         run: go build ./...
-
-      - name: Test
-        run: go test ./...
+      - name: Build Docker image
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push image
+        if: github.event_name == 'push'
+        run: docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
   test:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-
-      - name: Run tests
+      - name: Test suite
         run: go test ./...
+      - name: Coverage gate (>= 80% non-generated)
+        run: |
+          go test ./... -coverprofile=coverage.out
+          grep -v -E '/internal/mocks/|server_openapi\.gen\.go|\.pb\.go' coverage.out > coverage.out.filtered
+          total=$(go tool cover -func=coverage.out.filtered | tail -1 | awk '{print $NF}' | tr -d '%')
+          echo "coverage: ${total}% (threshold 80%)"
+          awk -v c="$total" 'BEGIN { exit !(c >= 80) }'
+
+  quality:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: go vet
+        run: go vet ./...
+      - name: gofmt
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "gofmt violations:"
+            gofmt -l .
+            exit 1
+          fi
 
   deploy-dev:
-    needs: test
+    needs: [test, quality]
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Build Docker image
-        run: docker build -t user-management-api:dev .
-
-      - name: Deploy to dev
+      - name: Deploy to dev (compose up)
         run: |
-          docker-compose -f docker-compose.yml up -d api-dev
+          docker compose -f docker-compose.yml up -d api
+      - name: Verify dev health
+        run: |
+          until curl -fs http://localhost:8080/health; do sleep 2; done
 
-  # deploy-prod:
-  #   needs: [deploy-dev]
-  #   runs-on: ubuntu-latest
-  #   environment: production
-  #   # Manual approval required - only runs on manual dispatch or after approval
-  #   workflow_dispatch:
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-
-  #     - name: Set up Go
-  #       uses: actions/setup-go@v5
-  #       with:
-  #         go-version: ${{ env.GO_VERSION }}
-
-  #     - name: Build Docker image
-  #       run: docker build -t user-management-api:prod .
-
-  #     - name: Blue-Green Deployment
-  #       run: |
-  #         # Swap to new version (blue-green)
-  #         docker-compose -f docker-compose.yml up -d api-prod
-  #         # Optional: wait for health check
-  #         sleep 30
-  #         # Verify health
-  #         curl -f http://localhost:8080/health || exit 1
-
-  #     - name: Notify deployment success
-  #       run: echo "Production deployment successful"
+  deploy-prod:
+    needs: [test, quality]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      APP_ENV: prod
+      IMAGE_TAG: ${{ github.sha }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Blue-Green deploy (production)
+        run: bash scripts/deploy.sh
+      - name: Health smoke after deploy
+        run: |
+          until curl -fs http://localhost:8080/health; do sleep 2; done
+      - name: Rollback procedure
+        run: |
+          echo "Rollback: rerun deploy-prod with IMAGE_TAG=<previous-sha> overriding scripts/deploy.sh rollback"

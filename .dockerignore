@@ -1,0 +1,16 @@
+.git
+.gitignore
+bin/
+docs/
+coverage.out
+coverage.html
+**/*_test.go
+Dockerfile
+docker-compose*.yml
+Makefile
+scripts/
+.aidlc/
+.obsidian/
+.serena/
+.apk-*
+*.md

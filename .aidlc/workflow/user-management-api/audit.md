@@ -227,3 +227,17 @@
 **Action**: fix warning
 **Artifacts**: cmd/api/main_test.go (4 lines formatting via gofmt -w)
 **Outcome**: gofmt clean, `make test` ยังผ่าน (87.6%). build-report status → passed, manifest build → approved.
+
+### [2026-09-13] Deploy: Decision Gate
+
+**Phase**: deploy
+**Action**: decision-gate
+**Artifacts**: decisions-deploy.md
+**Outcome**: D5 completed (use recommendations). 1 conflict found 🟡 Minor (existing deploy.yml อ้าง `api-dev` service ที่ไม่มีใน docker-compose + prod commented — แก้ใน generation). CI: GitHub Actions, Target: Containers, Strategy: Blue-Green.
+
+### [2026-09-13] Deploy: Generation
+
+**Phase**: deploy
+**Action**: generation
+**Artifacts**: .github/workflows/deploy.yml (extend), docker-compose.yml (api-green + image tag), scripts/deploy.sh, .env.dev.example, .env.production.example, .dockerignore, deploy-summary.md
+**Outcome**: Generated 6 deployment files for GitHub Actions targeting Containers (docker-compose). 2 environments configured (dev auto, prod manual-approval blue-green).
