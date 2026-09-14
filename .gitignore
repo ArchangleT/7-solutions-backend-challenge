@@ -13,7 +13,7 @@ coverage.out
 coverage.txt
 
 # OpenAPI docs bundle (regenerate with `make docsgen`)
-/docs/
+# /docs/
 
 # production secrets are injected via APP_ENV=prod at runtime
 config/secret_prod.go
