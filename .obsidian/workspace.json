@@ -178,6 +178,7 @@
   },
   "active": "c2178a2ed669771c",
   "lastOpenFiles": [
+    "Lottery Search System/documents/design/sequence_diagram/sequence_diagram.uml",
     "Lottery Search System/documents/design/database/sql_script/00_init_db_lottery.sql",
     "Lottery Search System/documents/requirements/README_PATH2.md",
     "Lottery Search System/documents/requirements/lottery-search-system/README_BRD.md",
@@ -205,7 +206,6 @@
     "Lottery Search System/documents/design/database/tech-stack.md",
     "Lottery Search System/documents/design/database/sql_script",
     "Lottery Search System/documents/design/database/schema",
-    "Lottery Search System/documents/design/database/er_diagram",
     "Lottery Search System/documents/requirements/README_BRD.md",
     "Lottery Search System/README.md",
     "Lottery Search System/documents/summary/user-management-api/README.md",
