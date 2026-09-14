@@ -1,26 +1,33 @@
-# Lottery Search System
+# Architecture & Sequence Flow — Lottery Search System
 
-Technology Stack
-Component	Technology
-API	Go
-Primary DB	PostgreSQL
-Search Index	PostgreSQL B-tree / digit indexes
-Advanced Search	Bitmap / specialized index if benchmark requires
-Cache	Redis
-Reservation	PostgreSQL transaction
-Locking	PostgreSQL row-level lock
-Concurrency	SKIP LOCKED
-Background Worker	Go Worker
-Monitoring	Prometheus + Grafana
-Logs	Centralized logging
-Deployment	Kubernetes / ECS / VM ตาม infrastructure
+เอกสารสรุปภาพรวมสถาปัตยกรรมระบบ (System Architecture), ลำดับขั้นตอนการทำงาน (Sequence Flow), และอัลกอริทึมในการค้นหาและจัดสรรสลากกินแบ่งรัฐบาล (10 ล้านรายการ) ในสภาวะ Concurrency สูง
 
-Go + PostgreSQL เป็น combination ที่เหมาะกับ workload นี้
+---
 
+## 1. Technology Stack Overview
 
--- -----------------------------------------------------
+> **Go + PostgreSQL** คือสถาปัตยกรรมหลักที่ออกแบบมาเพื่อรองรับงานประเภท High Throughput / Low Latency พร้อมการันตีความถูกต้องของข้อมูลในระดับธุรกรรม (ACID Transactions)
 
-1. Production Architecture
+| ส่วนประกอบ (Component) | เทคโนโลยี (Technology) | บทบาทหน้าที่ (Role & Responsibility) |
+|---|---|---|
+| **API Service** | **Go (Golang)** | ประมวลผลรวดเร็ว จัดการ Concurrent Requests ได้มหาศาลด้วย Goroutines |
+| **Primary Database** | **PostgreSQL** | เป็น Single Source of Truth สำหรับสต็อกสลากและการทำธุรกรรมจอง (ACID) |
+| **Search Index** | **B-Tree / Digit Indexes** | ทำ Range Scan และดัชนีแยกตามตำแหน่งตัวเลขเพื่อค้นหาแบบ Wildcard |
+| **Advanced Search** | **Roaring Bitmaps** *(Optional)* | อัลกอริทึม Bitwise AND ใน Memory หากต้องการ Latency ระดับ Sub-millisecond |
+| **Cache & Lock** | **Redis** | แคชผลลัพธ์ของ Pattern ยอดนิยม (Short TTL) และควบคุม Rate Limiting |
+| **Reservation Engine**| **PostgreSQL Transaction** | จัดการจองสลากแบบ Atomic รับประกันว่าไม่มีการตัดสต็อกเกิน (No Overbooking) |
+| **Concurrency Lock** | **`FOR UPDATE SKIP LOCKED`** | ป้องกันการแย่งสลากใบเดียวกันแบบ Non-blocking (ไม่ต้องรอคิว) |
+| **Background Worker**| **Go Worker (Ticker)** | รันเบื้องหลังทุก 5-10 วินาที คืนสลากที่หมดเวลาจอง (Expired Hold) กลับสู่ระบบ |
+| **Monitoring** | **Prometheus + Grafana** | ตรวจจับค่า Latency, Lock Wait Time, และ Database Connection Pool |
+| **Logging** | **Centralized Structured Log** | บันทึก Log รูปแบบ JSON ตรวจสอบย้อนหลังได้ง่าย |
+| **Deployment** | **Kubernetes / ECS / Docker** | รองรับการทำ Horizontal Pod Autoscaling (HPA) ตามปริมาณงาน |
+
+---
+
+## 2. Production Architecture
+
+### 2.1 สถาปัตยกรรมพื้นฐาน (Standard Architecture)
+แยกโหลดการทำงานระหว่างการค้นหา (Read-heavy) และการจองสลาก (Transactional Write) อย่างชัดเจน:
 
 ```text
                          ┌─────────────┐
@@ -45,18 +52,23 @@ Go + PostgreSQL เป็น combination ที่เหมาะกับ workl
                   │                         │
                   ▼                         ▼
           PostgreSQL Replica          PostgreSQL Primary
+             (Read-Only)               (Read / Write)
                   │                         │
                   │                  ┌──────┴──────┐
-                  │                  │ Reservation │
+                  │                  │ Allocations │
                   │                  │    Table    │
                   │                  └─────────────┘
                   │
                   ▼
                 Redis
-           (Cache & Lock)
+            (Cache & Lock)
 ```
 
-หาก traffic สูงมาก (Horizontal Scaling):
+---
+
+### 2.2 สถาปัตยกรรมรองรับทราฟฟิกมหาศาล (Horizontal Scaling 10,000+ req/s)
+
+เมื่อมีปริมาณคำขอเพิ่มขึ้น สามารถขยายระบบในแนวนอน (Scale Out) ได้อย่างอิสระ:
 
 ```text
                   ┌───────────────┐
@@ -65,34 +77,35 @@ Go + PostgreSQL เป็น combination ที่เหมาะกับ workl
                           │
               ┌───────────┼───────────┐
               ▼           ▼           ▼
-           Search       Search      Search
-           Service      Service      Service
-              │           │           │
-              └───────────┼───────────┘
-                          │
-                          ▼
-                PostgreSQL Cluster / Redis
+        Search Service  Search Service  Search Service
+           (Go Pod)        (Go Pod)        (Go Pod)
+              │               │               │
+              └───────────────┼───────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+               Redis Cache      PostgreSQL Cluster
+             (Short TTL 2-3s)   (Primary + Replicas)
 ```
 
 ---
 
-### 1.1 Sequence Diagram — Concurrent Allocation
+## 3. Sequence Diagram — Concurrent Allocation Flow
 
-ลำดับการทำงานเมื่อมีผู้ใช้ 2 คน (User A และ User B) ส่งคำขอค้นหา/จองสลากด้วย Pattern เดียวกัน (`1****5`) เข้ามาพร้อมกัน:
+ลำดับการทำงานเมื่อมีผู้ใช้ 2 คน (**User A** และ **User B**) ส่งคำขอค้นหา/จองสลากด้วย Pattern เดียวกัน (`1****5`) เข้ามาในเวลาพร้อมกัน:
 
 ```mermaid
 sequenceDiagram
-    autonumber
     actor UserA as User A (Client)
     actor UserB as User B (Client)
     participant API as API Gateway / Search Service
-    participant Redis as Redis (Distributed Lock)
     participant DB as Database (Lottery DB)
+    participant Redis as Redis (Distributed Lock)
 
     UserA->>API: 1. Search pattern: 1****5
     UserB->>API: 2. Search pattern: 1****5
 
-    critical Concurrency Control
+    critical Concurrency Control (User A)
         API->>Redis: 3. Acquire lock (pattern: 1****5)
         Redis-->>API: 4. Lock acquired (TTL)
 
@@ -108,292 +121,139 @@ sequenceDiagram
     end
 
     API-->>UserA: 12. Return ticket to User A
-
-    Note over API, UserB: สำหรับ User B: Acquire Lock ต่อเนื่อง -> หยิบสลากใบถัดไป
     API-->>UserB: 13. Return next available ticket to User B
 ```
 
-#### เปรียบเทียบ 2 กลยุทธ์การล็อค (Locking Strategies Comparison):
+![Sequence Diagram — Concurrent Allocation](sequence_diagram.png)
 
-| คุณสมบัติ | วิธีที่ 1: Redis Distributed Lock (ตามไดอะแกรมข้างต้น) | วิธีที่ 2: PostgreSQL `FOR UPDATE SKIP LOCKED` (แนะนำใน Production) |
-|---|---|---|
-| **กลไก** | ล็อคระดับ Pattern Key บน Redis ชั่วคราวด้วย TTL | ล็อคระดับ Row ของ Ticket ที่ตรงกับเงื่อนไขใน Database ทันที |
-| **พฤติกรรมของ User B** | ต้องรอให้ User A ปล่อย Lock ก่อน จึงจะเข้าถึงการจองได้ (Serialized Queue) | **ไม่ต้องรอคิว (Non-blocking)** ระบบจะข้ามแถวที่ User A ล็อคอยู่ไปหยิบใบถัดไปทันที |
-| **Overhead** | มี Network Roundtrip ไป Redis (Acquire + Release) | รวมอยู่ใน Database Transaction เดียวแบบ Atomic |
-| **Failure Safety** | เสี่ยงค้างถ้าลืม Release หรือ TTL หลุดก่อนเวลา | ปลอดภัย 100% ถ้า Worker ตาย DB ทำ Rollback อัตโนมัติ |
+
+### 💡 การเปรียบเทียบกลยุทธ์การล็อค (Locking Strategies):
+
+```mermaid
+graph LR
+    subgraph Strategy_A [วิธีที่ 1: Redis Distributed Lock]
+        A1[User A Lock Pattern] --> A2[User B ต้องรอคิว...]
+        A2 --> A3[User A Release] --> A4[User B เริ่มทำงาน]
+    end
+
+    subgraph Strategy_B [วิธีที่ 2: PostgreSQL SKIP LOCKED - แนะนำ]
+        B1[User A Lock Ticket #1] 
+        B2[User B ข้าม Ticket #1 ทันที] --> B3[User B Lock Ticket #2 พร้อมกัน]
+    end
+```
+
+- **วิธีที่ 1 (Redis Lock)**: ล็อคระดับ Pattern ทำให้เกิดคิวรอ (Serialized) เหมาะกับระบบที่ต้องการจำกัดโควตาต่อ Pattern
+- **วิธีที่ 2 (`SKIP LOCKED`)**: ล็อคระดับแถวของตั๋วแบบ Non-blocking ไม่เกิดคิวรอ ช่วยให้ Throughput สูงกว่ามาก
 
 ---
 
-### 1.2 ER Diagram
+## 4. API Concept & Lifecycle
+
+ระบบไม่ได้ทำหน้าที่เพียงแค่ "ค้นหาแล้วส่งคืนข้อมูล" แต่ทำหน้าที่เป็น **Search & Atomic Allocation**:
+
+```text
+  Client Request
+        │
+        ▼
+   [ 1. FIND ]       --> ค้นหาสลากที่ตรงกับ Pattern และยังว่างอยู่
+        │
+        ▼
+   [ 2. LOCK ]       --> ล็อคแถวสลากที่เลือกไว้ (Row-level Lock)
+        │
+        ▼
+  [ 3. RESERVE ]     --> อัปเดตสถานะเป็น RESERVED พร้อมบันทึกเวลาหมดอายุ
+        │
+        ▼
+   [ 4. RETURN ]     --> ส่งผลลัพธ์พร้อม Reservation ID ให้ผู้ใช้
+```
+
+### ตัวอย่าง Interface:
+- **Endpoint**: `POST /lottery/search`
+- **Request Body**:
+  ```json
+  {
+    "pattern": "123***",
+    "quantity": 1
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "reservation_id": 900001,
+    "ticket_id": 500003,
+    "lottery_number": "123001",
+    "expires_at": "2026-09-11T14:05:01Z"
+  }
+  ```
+
+---
+
+## 5. Failure Handling (การจัดการความล้มเหลว)
+
+ข้อดีของการใช้ **Database ACID Transaction** เป็น Source of Truth:
 
 ```mermaid
-erDiagram
-    users ||--o{ allocations : "has"
-    tickets ||--o{ allocations : "allocated_to"
-    patterns ||--o{ pattern_index : "indexes"
-    tickets ||--o{ pattern_index : "indexed_in"
-
-    users {
-        bigint user_id PK
-        varchar name
-        varchar email UK
-        timestamp created_at
-    }
-
-    tickets {
-        bigint ticket_id PK
-        char(6) ticket_number UK
-        boolean allocated
-        timestamp allocated_at
-    }
-
-    allocations {
-        bigint allocation_id PK
-        bigint user_id FK
-        bigint ticket_id FK
-        varchar pattern
-        timestamp allocated_at
-        timestamp expires_at
-        varchar status
-    }
-
-    patterns {
-        bigint pattern_id PK
-        varchar pattern_text UK
-        timestamp created_at
-    }
-
-    pattern_index {
-        bigint index_id PK
-        bigint pattern_id FK
-        int position
-        char(1) digit
-        bigint ticket_id FK
-    }
+flowchart TD
+    TX_Start[BEGIN TRANSACTION] --> Lock_Row[LOCK TICKET ROW]
+    Lock_Row --> Reserve_Row[RESERVE / INSERT ALLOCATION]
+    
+    Reserve_Row --> Check_Crash{Application Crashes?}
+    
+    Check_Crash -->|Crash ก่อน Commit| Rollback[PostgreSQL Auto Rollback\n- Lock ถูกปลดทันที\n- สลากกลับเป็น AVAILABLE]
+    Check_Crash -->|Crash หลัง Commit| Persisted[ข้อมูลบันทึกสำเร็จ\n- Status = RESERVED\n- มี expires_at คุ้มครอง]
+    
+    Persisted --> Reaper[Worker ตรวจพบการหมดเวลา\n- คืนสถานะสลากใหม่อัตโนมัติ]
 ```
 
 ---
 
-### 1.3 Database Schema (Relational)
-
-#### 1. ตาราง `users`
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `user_id` | `BIGINT` | `PK` | รหัสประจำตัวผู้ใช้ |
-| `name` | `VARCHAR(100)` | `NOT NULL` | ชื่อผู้ใช้ |
-| `email` | `VARCHAR(100)` | `UNIQUE, NOT NULL` | อีเมลผู้ใช้ |
-| `created_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | เวลาที่สร้าง |
-
-#### 2. ตาราง `tickets`
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `ticket_id` | `BIGINT` | `PK` | รหัสสลาก (1 - 10,000,000) |
-| `ticket_number` | `CHAR(6)` | `NOT NULL` | เลขสลาก 6 หลัก (เช่น `123456`) |
-| `allocated` | `BOOLEAN` | `DEFAULT FALSE` | สถานะการถูกจัดสรร/จอง |
-| `allocated_at` | `TIMESTAMP` | `NULL` | เวลาที่ถูกจัดสรร |
-
-#### 3. ตาราง `allocations`
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `allocation_id` | `BIGINT` | `PK` | รหัสรายการจัดสรร |
-| `user_id` | `BIGINT` | `FK -> users(user_id)` | รหัสผู้ใช้ |
-| `ticket_id` | `BIGINT` | `FK -> tickets(ticket_id)` | รหัสสลากที่ได้รับ |
-| `pattern` | `VARCHAR(6)` | `NOT NULL` | Pattern ที่ใช้ค้นหา (เช่น `1****5`) |
-| `allocated_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | เวลาจัดสรร |
-| `expires_at` | `TIMESTAMP` | `NOT NULL` | เวลาหมดอายุการจอง |
-| `status` | `VARCHAR(20)` | `DEFAULT 'ACTIVE'` | สถานะ (`ACTIVE`, `EXPIRED`, `SOLD`) |
-
-#### 4. ตาราง `patterns`
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `pattern_id` | `BIGINT` | `PK` | รหัส Pattern |
-| `pattern_text` | `VARCHAR(6)` | `UNIQUE, NOT NULL` | ข้อความ Pattern (เช่น `1****5`, `****23`) |
-| `created_at` | `TIMESTAMP` | `DEFAULT CURRENT_TIMESTAMP` | เวลาที่บันทึก Pattern |
-
-#### 5. ตาราง `pattern_index`
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `index_id` | `BIGINT` | `PK` | รหัสดัชนี |
-| `pattern_id` | `BIGINT` | `FK -> patterns(pattern_id)` | รหัส Pattern |
-| `position` | `INT` | `NOT NULL` | ตำแหน่งของตัวเลข (1 - 6) |
-| `digit` | `CHAR(1)` | `NULLABLE` | ตัวเลขในตำแหน่งนั้น (0 - 9 หรือ NULL) |
-| `ticket_id` | `BIGINT` | `FK -> tickets(ticket_id)` | รหัสสลากที่ตรงเงื่อนไข |
-
-#### Recommended Indexes & Constraints:
-- `INDEX tickets_alloc_num ON tickets(allocated, ticket_number)`
-- `INDEX idx_pattern_pos_digit ON pattern_index(pattern_id, position, digit)`
-- `INDEX idx_alloc_user_time ON allocations(user_id, allocated_at)`
-- `INDEX idx_patterns_text ON patterns(pattern_text)`
-- `CONSTRAINT uq_pattern_index UNIQUE(pattern_id, position, digit, ticket_id)`
-
-> **💡 Architectural Note (วิวัฒนาการในการออกแบบระดับ Production)**:  
-> การใช้ตาราง `pattern_index` ล่วงหน้า เหมาะสำหรับการ Query ที่มี Pattern คงที่และจำกัด แต่หากผู้ใช้ค้นหา Pattern แบบ Dynamic หลากหลายรูปแบบ การเก็บ `p1..p6` แยกเป็นคอลัมน์ในตาราง `tickets` และสร้าง Functional / Composite B-Tree Index จะช่วยประหยัดพื้นที่จัดเก็บและลดความซับซ้อนในการทำ Maintenance ดัชนีในระยะยาวได้อย่างมหาศาล
-
-
-2.API Concept
-
-API สามารถออกแบบในลักษณะ:
-
-POST /lottery/search
-
-request:
-
-pattern = "123***"
-quantity = 1
-
-ระบบไม่ได้เพียง return candidate tickets แต่ทำ:
-
-find
-→ lock
-→ reserve
-→ return
-
-ผลลัพธ์:
-
-reservation_id
-ticket_id
-lottery_number
-expires_at
-
-
-
-
--- -----------------------------------------------------
-
-
-3.Handling High Traffic
-
-สมมติ:
-
-10M tickets
-100 requests/sec
-
-ถือว่า PostgreSQL สามารถรองรับได้ หาก query/index ถูกออกแบบดี
-
-แต่ถ้ากลายเป็น:
-
-10,000+ requests/sec
-
-ควรเพิ่ม architecture:
-
-                 API
-                  │
-                  ▼
-             Search Service
-                  │
-          ┌───────┴───────┐
-          ▼               ▼
-      Search Cache      PostgreSQL
-          │               │
-          │               ▼
-          │          Allocation
-          │             DB
-          │
-          ▼
-       Redis
-
-Redis ใช้ cache candidate information ได้ แต่ transaction ที่ reserve ticket ต้องยังคงอยู่ใน durable database
-
-
-
-
--- -----------------------------------------------------
-
-4.Failure Handling
-
-สมมติ application server ตายหลัง reserve:
-
-BEGIN
- ↓
-LOCK
- ↓
-RESERVE
- ↓
-Application crashes
-
-ถ้า transaction ยังไม่ commit:
-
-→ PostgreSQL rollback
-→ lock released
-
-ถ้า commit แล้ว:
-
-→ reservation อยู่
-→ expires_at จัดการต่อ
-
-นี่เป็นข้อดีของการใช้ database transaction เป็น source of truth
-
-
-
--- -----------------------------------------------------
-
-5.Database Performance Analysis
-CPU
-IOPS
-connection pool
-lock wait
-deadlock
-index hit ratio
-replication lag
-
-โดยเฉพาะ:
-
-lock wait time
-
-สำคัญมากสำหรับระบบ allocation
-
-
--- -----------------------------------------------------
-
-6.Search Strategy
-
-ผมแนะนำให้มี query planner ภายใน Search Service:
-
-Pattern
-   │
-   ▼
-Analyze fixed positions
-   │
-   ├── 6 fixed → Exact Lookup
-   │
-   ├── Prefix → Range Index
-   │
-   ├── Several fixed positions → Digit Index
-   │
-   └── Very low selectivity → Bitmap / Candidate Pool
-
-ไม่ควรใช้ algorithm เดียวกับทุก pattern
-
-
-
-
-
--- -----------------------------------------------------
-
-7. Allocation Algorithm
-
-Logical flow:
-
-1. Validate pattern
-2. Parse wildcard pattern
-3. Determine search strategy
-4. Find candidate tickets
-5. Start transaction
-6. Lock candidate tickets
-7. Skip tickets already reserved
-8. Select required number
-9. Create reservation records
-10. Commit
-11. Return allocated tickets
-
-ถ้า candidate ถูก lock อยู่:
-
-SKIP LOCKED
-
-เพื่อให้ request อื่นไปเลือก ticket ตัวถัดไป
-
-
-
-
-
-
+## 6. Database Performance Analysis (KPIs)
+
+ดัชนีชี้วัดประสิทธิภาพฐานข้อมูลที่ต้องเฝ้าระวังอย่างใกล้ชิด:
+
+| Metrics | ค่าที่คาดหวัง | ความสำคัญต่องาน Allocation |
+|---|:---:|---|
+| **Lock Wait Time** | **< 5 ms** | **สำคัญที่สุด**: ชี้วัดว่าเกิดการแย่ง Lock คิวนานหรือไม่ |
+| **Deadlock Count** | **0** | ต้องไม่เกิด Deadlock ด้วยการใช้ `SKIP LOCKED` |
+| **Index Hit Ratio** | **> 99%** | การันตีว่า Query ทุกแบบวิ่งผ่าน Memory (RAM Buffer) |
+| **Connection Pool** | **< 80%** | ป้องกัน Connection เต็มช่วง Traffic Surge |
+| **Replication Lag** | **< 100 ms** | มั่นใจได้ว่า Read Replica ข้อมูลไม่ล้าหลัง |
+
+---
+
+## 7. Search Strategy (Query Routing Planner)
+
+Search Service ควรมี Internal Planner เพื่อเลือก Index และวิธีการค้นหาตามรูปแบบของ Pattern:
+
+```text
+                 Pattern Input
+                       │
+                       ▼
+            Analyze Fixed Positions
+                       │
+      ┌────────────────┼────────────────┬────────────────┐
+      ▼                ▼                ▼                ▼
+[ 6 Fixed Digits ] [ Prefix Match ] [ Mixed Digits ] [ Wide Wildcard ]
+      │                │                │                │
+      ▼                ▼                ▼                ▼
+ Exact Lookup     Range Index      Digit Index     Sample Pool /
+ (B-Tree Point)  (123000-123999)    (p1..p6)      Bitmap Candidate
+```
+
+---
+
+## 8. Allocation Algorithm (11-Step Pipeline)
+
+ขั้นตอนการประมวลผลการจัดสรรสลากอย่างละเอียด:
+
+1. **Validate Pattern**: ตรวจสอบความถูกต้องของความยาว (6 ตัวอักษร) และตัวอักขระ (`0-9`, `*`)
+2. **Parse Pattern**: ถอดรหัสตำแหน่งตัวเลขและ Wildcard
+3. **Determine Search Strategy**: เลือกแนวทางการค้นหาที่เหมาะสมที่สุด
+4. **Find Candidate Tickets**: ค้นหารายการสลากที่ตรงเงื่อนไข
+5. **Start Transaction**: เปิดคำสั่ง `BEGIN TRANSACTION` บน Primary DB
+6. **Lock Candidate Tickets**: สั่งล็อคแถวสลากที่เข้าข่าย
+7. **Skip Locked**: ข้ามสลากที่ผู้ใช้อื่นล็อคอยู่ด้วย `FOR UPDATE SKIP LOCKED`
+8. **Select Required Number**: เลือกจำนวนสลากตามที่ระบุในคำขอ (`LIMIT quantity`)
+9. **Create Reservation Records**: สร้างเรคคอร์ดในตาราง `allocations` พร้อมระบุ `expires_at`
+10. **Commit Transaction**: ยืนยันธุรกรรม (`COMMIT`) เพื่อบันทึกสถานะอย่างถาวร
+11. **Return Allocated Tickets**: ส่งข้อมูลสลากและรหัสการจองกลับไปให้ผู้ใช้

@@ -6,9 +6,10 @@
 
 ## รายการไฟล์ DDL ตามลำดับ Dependency
 
-| ลำดับ | ไฟล์ | ชื่อตาราง | คำอธิบาย |
+| ลำดับ | ไฟล์ | ชื่อตาราง / วัตถุประสงค์ | คำอธิบาย |
 |:---:|---|---|---|
-| **00** | [`00_init_schema.sql`](./00_init_schema.sql) | *(Master Script)* | รวมคำสั่งรันทุกตารางตามลำดับ |
+| **00** | [`00_init_db_lottery.sql`](./00_init_db_lottery.sql) | **Database Bootstrap** | สคริปต์เดี่ยวสมบูรณ์: สร้าง DB `lottery_system` พร้อมตาราง, Index, Constraints ทั้งหมด |
+| **00** | [`00_init_schema.sql`](./00_init_schema.sql) | *(Master Runner)* | รวมคำสั่ง `\i` รันไฟล์แยกตามลำดับ |
 | **01** | [`01_users.sql`](./01_users.sql) | `users` | ข้อมูลผู้ใช้งานในระบบ |
 | **02** | [`02_tickets.sql`](./02_tickets.sql) | `tickets` | ข้อมูลสลาก 10 ล้านใบ (Inventory) |
 | **03** | [`03_patterns.sql`](./03_patterns.sql) | `patterns` | ข้อความ Search Pattern ที่ไม่ซ้ำกัน |
@@ -19,10 +20,16 @@
 
 ## วิธีการรันสคริปต์ (Execution)
 
-### รันทุกไฟล์ผ่าน Master Script:
+### 1. รันไฟล์เดียวจบ (สร้าง Database + สร้าง Tables ครบถ้วน):
 ```bash
-psql -U <username> -d <dbname> -f 00_init_schema.sql
+psql -U postgres -f 00_init_db_lottery.sql
 ```
+
+### 2. รันผ่าน Master Script บน Database ที่มีอยู่แล้ว:
+```bash
+psql -U <username> -d lottery_system -f 00_init_schema.sql
+```
+
 
 ### หรือรันทีละไฟล์ตามลำดับ:
 ```bash

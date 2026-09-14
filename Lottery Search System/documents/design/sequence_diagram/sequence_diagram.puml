@@ -1,0 +1,45 @@
+@startuml Concurrent Allocation Sequence Diagram
+autonumber
+skinparam monochrome false
+skinparam roundcorner 10
+skinparam defaultFontName "Arial"
+
+actor "User A\n(Client)" as UserA #AliceBlue
+actor "User B\n(Client)" as UserB #AliceBlue
+participant "API Gateway /\nSearch Service" as API #LightGreen
+database "Database\n(Lottery DB)" as DB #Lavender
+participant "Redis\n(Distributed Lock)" as Redis #Pink
+
+
+UserA -> API: 1. Search pattern: 1****5
+UserB -> API: 2. Search pattern: 1****5
+
+group Concurrency Control (User A)
+    API -> Redis: 3. Acquire lock (pattern: 1****5)
+    Redis --> API: 4. Lock acquired (TTL)
+
+    API -> DB: 5. Query available tickets (using index)
+    activate DB
+    DB -> DB: 6. Find matching tickets (not allocated)
+    DB --> API: 7. Return candidate ticket IDs
+    deactivate DB
+
+    API -> DB: 8. Reserve ticket (atomic update: set allocated = true)
+    activate DB
+    DB --> API: 9. Success (ticket ID)
+    deactivate DB
+
+    API -> Redis: 10. Release lock
+    Redis --> API: 11. Lock released
+end
+
+API --> UserA: 12. Return ticket to User A
+
+note over API, UserB
+  สำหรับ User B: Acquire Lock ต่อเนื่อง
+  -> ข้ามสลากของ A -> จัดสรรสลากใบถัดไป
+end note
+
+API --> UserB: 13. Return next available ticket to User B
+
+@enduml
