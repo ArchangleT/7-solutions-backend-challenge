@@ -19,5 +19,5 @@ coverage.txt
 config/secret_prod.go
 
 # local environment
-.env
-.env.*
+# .env
+/.env/*.env.prod*
