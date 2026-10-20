@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"testing"
 
 	domain "github.com/ArchangleT/7-solutions-backend-challenge/internal/domain/user"
@@ -27,6 +28,7 @@ type memoryRepo struct {
 	createErr      error
 	findByEmailErr error
 	updateErr      error
+	searchErr      error
 }
 
 func newMemoryRepo() *memoryRepo {
@@ -85,6 +87,27 @@ func (r *memoryRepo) List(_ context.Context) ([]domain.User, error) {
 		users = append(users, *u)
 	}
 	return users, nil
+}
+
+func (r *memoryRepo) Search(_ context.Context, q domain.SearchQuery) ([]domain.User, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	if r.searchErr != nil {
+		return nil, r.searchErr
+	}
+	matches := make([]domain.User, 0)
+	for _, u := range r.users {
+		if _, ok := q.Score(u); ok {
+			matches = append(matches, *u)
+		}
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		si, _ := q.Score(&matches[i])
+		sj, _ := q.Score(&matches[j])
+		return si > sj
+	})
+	return matches, nil
 }
 
 func (r *memoryRepo) Update(_ context.Context, u *domain.User) error {
@@ -671,3 +694,91 @@ func TestDelete(t *testing.T) {
 }
 
 func strp(s string) *string { return &s }
+
+// ---- Search ----
+
+func TestSearch(t *testing.T) {
+	seed := func(t *testing.T, repo *memoryRepo) {
+		t.Helper()
+		for _, u := range []*domain.User{
+			{ID: "1", Name: "Alice Johnson", Email: "alice@example.com", Password: hashedSecret},
+			{ID: "2", Name: "Bob Smith", Email: "bob@corp.com", Password: hashedSecret},
+			{ID: "3", Name: "Alicia Keys", Email: "keys@music.io", Password: hashedSecret},
+			{ID: "4", Name: "Carol", Email: "alice2@example.com", Password: hashedSecret},
+		} {
+			if err := repo.Create(context.Background(), u); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	t.Run("prefix matches name and email, name ranked higher", func(t *testing.T) {
+		svc, repo, _, _ := newTestService(t)
+		seed(t, repo)
+
+		out, err := svc.Search(context.Background(), SearchUsersInput{Query: "ali"})
+		if err != nil {
+			t.Fatalf("Search() error = %v", err)
+		}
+		if len(out) != 3 {
+			t.Fatalf("got %d results, want 3", len(out))
+		}
+		// Alice (name exact-prefix) and Alicia (name prefix) outrank Carol (email).
+		if out[0].Rank < out[2].Rank {
+			t.Errorf("expected name matches ranked above email match: %+v", out)
+		}
+		if out[len(out)-1].User.ID != "4" {
+			t.Errorf("email-only match should rank last, got %q", out[len(out)-1].User.ID)
+		}
+	})
+
+	t.Run("quoted token requires exact word", func(t *testing.T) {
+		svc, repo, _, _ := newTestService(t)
+		seed(t, repo)
+
+		out, err := svc.Search(context.Background(), SearchUsersInput{Query: `"alice"`})
+		if err != nil {
+			t.Fatalf("Search() error = %v", err)
+		}
+		// Only alice@example.com matches the whole word "alice"; alice2@ and
+		// the name-prefix matches (Alice/Alicia) do not.
+		if len(out) != 1 || out[0].User.ID != "1" {
+			t.Fatalf("got %+v, want single exact-word match alice@example.com", out)
+		}
+	})
+
+	t.Run("case insensitive", func(t *testing.T) {
+		svc, repo, _, _ := newTestService(t)
+		seed(t, repo)
+
+		out, err := svc.Search(context.Background(), SearchUsersInput{Query: "BOB"})
+		if err != nil {
+			t.Fatalf("Search() error = %v", err)
+		}
+		if len(out) != 1 || out[0].User.ID != "2" {
+			t.Fatalf("got %+v, want single Bob match", out)
+		}
+	})
+
+	t.Run("empty query returns empty slice", func(t *testing.T) {
+		svc, repo, _, _ := newTestService(t)
+		seed(t, repo)
+
+		out, err := svc.Search(context.Background(), SearchUsersInput{Query: "   "})
+		if err != nil {
+			t.Fatalf("Search() error = %v", err)
+		}
+		if out == nil || len(out) != 0 {
+			t.Fatalf("got %+v, want non-nil empty slice", out)
+		}
+	})
+
+	t.Run("repository error propagated", func(t *testing.T) {
+		svc, repo, _, _ := newTestService(t)
+		repo.err = errDB
+
+		if _, err := svc.Search(context.Background(), SearchUsersInput{Query: "ali"}); !errors.Is(err, errDB) {
+			t.Fatalf("Search() error = %v, want %v", err, errDB)
+		}
+	})
+}

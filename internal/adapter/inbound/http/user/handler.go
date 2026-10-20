@@ -63,6 +63,15 @@ func (h *Handler) List(c *fiber.Ctx) error {
 	return c.JSON(users)
 }
 
+// Search handles GET /api/v1/users/search?q=...
+func (h *Handler) Search(c *fiber.Ctx) error {
+	results, err := h.Users.Search(c.UserContext(), appuser.SearchUsersInput{Query: c.Query("q")})
+	if err != nil {
+		return h.WriteServiceError(c, err)
+	}
+	return c.JSON(results)
+}
+
 // GetByID handles GET /api/v1/users/:id.
 func (h *Handler) GetByID(c *fiber.Ctx) error {
 	out, err := h.Users.GetByID(c.UserContext(), c.Params("id"))

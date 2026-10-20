@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"sort"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -135,6 +137,86 @@ func (r *UserRepository) List(ctx context.Context) ([]domain.User, error) {
 		return nil, fmt.Errorf("list users cursor: %w", err)
 	}
 	return users, nil
+}
+
+// Search matches users whose name or email contains a word starting with any
+// of the query tokens (word-prefix, case-insensitive), mirroring Apple Notes.
+// MongoDB has no first-class word-prefix operator, so each token is anchored
+// at a word boundary via a regex, then results are sorted "Top Hits" first:
+// name matches outrank email matches and ties break toward the most recent.
+func (r *UserRepository) Search(ctx context.Context, query domain.SearchQuery) ([]domain.User, error) {
+	filter := buildSearchFilter(query)
+	if filter == nil {
+		return []domain.User{}, nil
+	}
+
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("search users: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	users := make([]domain.User, 0)
+	for cursor.Next(ctx) {
+		var doc userDoc
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, fmt.Errorf("decode user: %w", err)
+		}
+		users = append(users, *toDomain(&doc))
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("search users cursor: %w", err)
+	}
+
+	sortTopHits(users, query)
+	return users, nil
+}
+
+// buildSearchFilter builds an $or over (name, email) for every prefix token
+// and exact token. Returns nil when there are no tokens to match.
+func buildSearchFilter(query domain.SearchQuery) bson.M {
+	var clauses []bson.M
+
+	for _, token := range query.Tokens {
+		expr := wordPrefixRegex(regexp.QuoteMeta(token))
+		clauses = append(clauses,
+			bson.M{"name": bson.M{"$regex": expr, "$options": "i"}},
+			bson.M{"email": bson.M{"$regex": expr, "$options": "i"}},
+		)
+	}
+	for _, token := range query.ExactTokens {
+		expr := `(^|[^a-z0-9])` + regexp.QuoteMeta(token) + `([^a-z0-9]|$)`
+		clauses = append(clauses,
+			bson.M{"name": bson.M{"$regex": expr, "$options": "i"}},
+			bson.M{"email": bson.M{"$regex": expr, "$options": "i"}},
+		)
+	}
+
+	if len(clauses) == 0 {
+		return nil
+	}
+	return bson.M{"$or": clauses}
+}
+
+// wordPrefixRegex builds a regex that matches token as a whole word prefix:
+// either at the start of the string, or preceded by a non-alphanumeric
+// separator. It approximates word tokenization without a text index.
+func wordPrefixRegex(token string) string {
+	return "^" + token + `|(^|[^a-zA-Z0-9])` + token
+}
+
+// sortTopHits orders users the way Apple Notes surfaces "Top Hits": stronger
+// field matches first (name over email), then most recently created. It reuses
+// the domain scoring so the ordering and the API's reported rank agree.
+func sortTopHits(users []domain.User, query domain.SearchQuery) {
+	sort.SliceStable(users, func(i, j int) bool {
+		si, _ := query.Score(&users[i])
+		sj, _ := query.Score(&users[j])
+		if si != sj {
+			return si > sj
+		}
+		return users[i].CreatedAt.After(users[j].CreatedAt)
+	})
 }
 
 func (r *UserRepository) Update(ctx context.Context, u *domain.User) error {

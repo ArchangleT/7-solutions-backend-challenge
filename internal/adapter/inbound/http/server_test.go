@@ -44,6 +44,10 @@ func (f *wiringFakeService) List(_ context.Context) ([]user.UserOutput, error) {
 	return f.list, f.err
 }
 
+func (f *wiringFakeService) Search(_ context.Context, _ user.SearchUsersInput) ([]user.SearchResultOutput, error) {
+	return []user.SearchResultOutput{{User: f.output, Rank: 1}}, f.err
+}
+
 func (f *wiringFakeService) Update(_ context.Context, _ string, _ user.UpdateUserInput) (user.UserOutput, error) {
 	return f.output, f.err
 }
@@ -101,10 +105,11 @@ func TestServerWiring_Routes(t *testing.T) {
 	token := wiringIssueToken(t)
 
 	protected := map[string]bool{
-		"GET /api/v1/users":       true,
-		"GET /api/v1/users/u1":    true,
-		"PUT /api/v1/users/u1":    true,
-		"DELETE /api/v1/users/u1": true,
+		"GET /api/v1/users":              true,
+		"GET /api/v1/users/search?q=ali": true,
+		"GET /api/v1/users/u1":           true,
+		"PUT /api/v1/users/u1":           true,
+		"DELETE /api/v1/users/u1":        true,
 	}
 
 	tests := []struct {
@@ -118,6 +123,7 @@ func TestServerWiring_Routes(t *testing.T) {
 		{"register user", "POST", "/api/v1/users", `{"name":"Alice","email":"alice@example.com","password":"secret123"}`, fiber.StatusCreated},
 		{"login", "POST", "/api/v1/auth/login", `{"email":"alice@example.com","password":"secret123"}`, fiber.StatusOK},
 		{"list users", "GET", "/api/v1/users", "", fiber.StatusOK},
+		{"search users", "GET", "/api/v1/users/search?q=ali", "", fiber.StatusOK},
 		{"get user", "GET", "/api/v1/users/u1", "", fiber.StatusOK},
 		{"update user", "PUT", "/api/v1/users/u1", `{"name":"Alice Cooper"}`, fiber.StatusOK},
 		{"delete user", "DELETE", "/api/v1/users/u1", "", fiber.StatusNoContent},
@@ -158,6 +164,7 @@ func TestServerWiring_ProtectedRoutesRequireToken(t *testing.T) {
 		path   string
 	}{
 		{"GET", "/api/v1/users"},
+		{"GET", "/api/v1/users/search?q=ali"},
 		{"GET", "/api/v1/users/u1"},
 		{"PUT", "/api/v1/users/u1"},
 		{"DELETE", "/api/v1/users/u1"},

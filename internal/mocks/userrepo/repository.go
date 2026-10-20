@@ -114,6 +114,21 @@ func (mr *MockRepositoryMockRecorder) List(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockRepository)(nil).List), ctx)
 }
 
+// Search mocks base method.
+func (m *MockRepository) Search(ctx context.Context, query user.SearchQuery) ([]user.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Search", ctx, query)
+	ret0, _ := ret[0].([]user.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Search indicates an expected call of Search.
+func (mr *MockRepositoryMockRecorder) Search(ctx, query any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockRepository)(nil).Search), ctx, query)
+}
+
 // Update mocks base method.
 func (m *MockRepository) Update(ctx context.Context, arg1 *user.User) error {
 	m.ctrl.T.Helper()

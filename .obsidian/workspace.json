@@ -37,7 +37,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -178,6 +180,9 @@
   },
   "active": "c2178a2ed669771c",
   "lastOpenFiles": [
+    "coverage.out.filtered",
+    "internal/domain/user/search_test.go",
+    "internal/domain/user/search.go",
     "Lottery Search System/documents/design/sequence_diagram/sequence_diagram.uml",
     "Lottery Search System/documents/design/database/sql_script/00_init_db_lottery.sql",
     "Lottery Search System/documents/requirements/README_PATH2.md",
@@ -196,7 +201,6 @@
     "Lottery Search System/documents/design/database/sql_script/04_allocations.sql",
     "Lottery Search System/documents/design/database/sql_script/03_patterns.sql",
     "Lottery Search System/documents/design/database/sql_script/02_tickets.sql",
-    "Lottery Search System/documents/design/database/sql_script/01_users.sql",
     "Lottery Search System/documents/design/sequence_diagram/concurrent_allocation.png",
     "Lottery Search System/documents/design/database/image.png",
     "Lottery Search System/documents/design/database/schema/table_5.png",
@@ -204,8 +208,6 @@
     "Lottery Search System/documents/design/database/schema/image.png",
     "Lottery Search System/documents/design/flow.md",
     "Lottery Search System/documents/design/database/tech-stack.md",
-    "Lottery Search System/documents/design/database/sql_script",
-    "Lottery Search System/documents/design/database/schema",
     "Lottery Search System/documents/requirements/README_BRD.md",
     "Lottery Search System/README.md",
     "Lottery Search System/documents/summary/user-management-api/README.md",

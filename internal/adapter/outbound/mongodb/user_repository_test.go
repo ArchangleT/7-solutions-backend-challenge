@@ -288,6 +288,93 @@ func TestList_DecodeErrorIsWrapped(t *testing.T) {
 	}
 }
 
+func TestSearch(t *testing.T) {
+	const hexA = "0123456789abcdef01234567"
+	const hexB = "0123456789abcdef01234568"
+	const hexC = "0123456789abcdef01234569"
+
+	alice := userDoc{ID: mustOID(hexA), Name: "Alice Johnson", Email: "alice@example.com", CreatedAt: time.Unix(100, 0).UTC()}
+	alicia := userDoc{ID: mustOID(hexB), Name: "Alicia Keys", Email: "keys@music.io", CreatedAt: time.Unix(200, 0).UTC()}
+	carol := userDoc{ID: mustOID(hexC), Name: "Carol", Email: "alice2@example.com", CreatedAt: time.Unix(300, 0).UTC()}
+
+	t.Run("empty query returns empty slice", func(t *testing.T) {
+		repo := &UserRepository{collection: &fakeCollection{findDocs: []any{alice}}}
+		got, err := repo.Search(context.Background(), domain.SearchQuery{})
+		if err != nil {
+			t.Fatalf("Search() error = %v", err)
+		}
+		if got == nil || len(got) != 0 {
+			t.Fatalf("got %+v, want non-nil empty slice", got)
+		}
+	})
+
+	t.Run("name matches outrank email matches", func(t *testing.T) {
+		repo := &UserRepository{collection: &fakeCollection{findDocs: []any{carol, alicia, alice}}}
+		got, err := repo.Search(context.Background(), domain.ParseSearchQuery("ali"))
+		if err != nil {
+			t.Fatalf("Search() error = %v", err)
+		}
+		if len(got) != 3 {
+			t.Fatalf("got %d users, want 3", len(got))
+		}
+		// Alice (name + email) > Alicia (name only) > Carol (email only).
+		wantOrder := []string{hexA, hexB, hexC}
+		for i, want := range wantOrder {
+			if got[i].ID != want {
+				t.Fatalf("order[%d] = %q, want %q (got %+v)", i, got[i].ID, want, got)
+			}
+		}
+	})
+
+	t.Run("ties on score break toward most recent", func(t *testing.T) {
+		older := userDoc{ID: mustOID(hexA), Name: "Zoe Older", Email: "zoe@a.io", CreatedAt: time.Unix(100, 0).UTC()}
+		newer := userDoc{ID: mustOID(hexB), Name: "Zoe Newer", Email: "zoe@b.io", CreatedAt: time.Unix(300, 0).UTC()}
+		repo := &UserRepository{collection: &fakeCollection{findDocs: []any{older, newer}}}
+		got, err := repo.Search(context.Background(), domain.ParseSearchQuery("zoe"))
+		if err != nil {
+			t.Fatalf("Search() error = %v", err)
+		}
+		if len(got) != 2 || got[0].ID != hexB || got[1].ID != hexA {
+			t.Fatalf("order = %+v, want newer before older", got)
+		}
+	})
+
+	t.Run("find error is wrapped", func(t *testing.T) {
+		repo := &UserRepository{collection: &fakeCollection{findErr: errMongo}}
+		if _, err := repo.Search(context.Background(), domain.ParseSearchQuery("ali")); !errors.Is(err, errMongo) {
+			t.Fatalf("Search() error = %v, want %v", err, errMongo)
+		}
+	})
+}
+
+func TestBuildSearchFilter(t *testing.T) {
+	if got := buildSearchFilter(domain.SearchQuery{}); got != nil {
+		t.Fatalf("empty query filter = %v, want nil", got)
+	}
+
+	filter := buildSearchFilter(domain.SearchQuery{Tokens: []string{"al"}, ExactTokens: []string{"bob"}})
+	clauses, ok := filter["$or"].([]bson.M)
+	if !ok || len(clauses) != 4 {
+		t.Fatalf("filter clauses = %v, want 4 ($or over name/email for each token)", filter)
+	}
+}
+
+func TestWordPrefixRegex(t *testing.T) {
+	got := wordPrefixRegex("al")
+	want := `^al|(^|[^a-zA-Z0-9])al`
+	if got != want {
+		t.Fatalf("wordPrefixRegex() = %q, want %q", got, want)
+	}
+}
+
+func mustOID(hex string) bson.ObjectID {
+	oid, err := bson.ObjectIDFromHex(hex)
+	if err != nil {
+		panic(err)
+	}
+	return oid
+}
+
 func TestUpdate(t *testing.T) {
 	tests := []struct {
 		name string

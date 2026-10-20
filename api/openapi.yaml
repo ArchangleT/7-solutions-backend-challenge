@@ -83,6 +83,37 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/v1/users/search:
+    get:
+      tags: [Users]
+      summary: Search users (Notes-style prefix matching)
+      description: |
+        Finds users whose name or email contains a word that *starts with* any
+        of the query tokens (word-prefix matching, case-insensitive), mirroring
+        how Apple Notes matches note titles and bodies.
+
+        Wrap a token in double quotes (`"alice"`) to require an exact word
+        match. Results are ranked "Top Hits" first: matches on the name are
+        weighted higher, and more recently created users break ties.
+
+        Results are ordered best-match first (same ordering used for `rank`).
+      operationId: SearchUsers
+      parameters:
+        - $ref: "#/components/parameters/SearchQuery"
+      responses:
+        "200":
+          description: Ranked list of matching users (Top Hits first)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/v1/auth/login:
     post:
       tags: [Auth]
@@ -188,6 +219,18 @@ components:
       schema:
         type: string
         example: 66f8a1b2c3d4e5f6a7b8c9d0
+    SearchQuery:
+      name: q
+      in: query
+      required: true
+      description: |
+        Search text. Tokens are matched as case-insensitive word prefixes.
+        Wrap a token in double quotes for an exact word match.
+      schema:
+        type: string
+        minLength: 1
+        example: ali
+      example: ali
 
   responses:
     BadRequest:
@@ -245,6 +288,19 @@ components:
         created_at:
           type: string
           format: date-time
+
+    SearchResult:
+      type: object
+      required: [user, rank]
+      description: A user that matched a search query, with its relevance score.
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        rank:
+          type: integer
+          format: int64
+          description: Relevance score; higher is a better match (Top Hits first).
+          example: 12
 
     CreateUserRequest:
       type: object

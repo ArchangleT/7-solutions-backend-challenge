@@ -19,6 +19,7 @@ type Service interface {
 	Login(ctx context.Context, in LoginInput) (LoginOutput, error)
 	GetByID(ctx context.Context, id string) (UserOutput, error)
 	List(ctx context.Context) ([]UserOutput, error)
+	Search(ctx context.Context, in SearchUsersInput) ([]SearchResultOutput, error)
 	Update(ctx context.Context, id string, in UpdateUserInput) (UserOutput, error)
 	Delete(ctx context.Context, id string) error
 }
@@ -112,6 +113,28 @@ func (s *service) List(ctx context.Context) ([]UserOutput, error) {
 	out := make([]UserOutput, 0, len(users))
 	for i := range users {
 		out = append(out, toOutput(&users[i]))
+	}
+	return out, nil
+}
+
+// Search implements the word-prefix, "Top Hits"-ranked search. The repository
+// does the matching; this layer parses the raw query into domain search tokens
+// and enriches every hit with a relevance score so the API can order by score.
+func (s *service) Search(ctx context.Context, in SearchUsersInput) ([]SearchResultOutput, error) {
+	query := domain.ParseSearchQuery(in.Query)
+	if query.Empty() {
+		return []SearchResultOutput{}, nil
+	}
+
+	users, err := s.repo.Search(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]SearchResultOutput, 0, len(users))
+	for i := range users {
+		score, _ := query.Score(&users[i])
+		out = append(out, SearchResultOutput{User: toOutput(&users[i]), Rank: score})
 	}
 	return out, nil
 }

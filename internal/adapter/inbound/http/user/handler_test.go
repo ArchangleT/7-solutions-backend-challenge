@@ -22,10 +22,11 @@ import (
 
 // fakeService implements user.Service for handler-level tests.
 type fakeService struct {
-	output user.UserOutput
-	list   []user.UserOutput
-	token  string
-	err    error
+	output  user.UserOutput
+	list    []user.UserOutput
+	results []user.SearchResultOutput
+	token   string
+	err     error
 }
 
 func (f *fakeService) Register(_ context.Context, _ user.CreateUserInput) (user.UserOutput, error) {
@@ -42,6 +43,10 @@ func (f *fakeService) GetByID(_ context.Context, _ string) (user.UserOutput, err
 
 func (f *fakeService) List(_ context.Context) ([]user.UserOutput, error) {
 	return f.list, f.err
+}
+
+func (f *fakeService) Search(_ context.Context, _ user.SearchUsersInput) ([]user.SearchResultOutput, error) {
+	return f.results, f.err
 }
 
 func (f *fakeService) Update(_ context.Context, _ string, _ user.UpdateUserInput) (user.UserOutput, error) {
@@ -320,6 +325,32 @@ func TestList(t *testing.T) {
 	}
 	if len(list) != 1 {
 		t.Fatalf("len = %d, want 1", len(list))
+	}
+}
+
+func TestSearch(t *testing.T) {
+	svc := &fakeService{results: []user.SearchResultOutput{{User: sampleOutput(), Rank: 15}}}
+	app := newTestApp(t, svc)
+	token := issueToken(t)
+
+	status, body := doRequest(t, app, "GET", "/api/v1/users/search?q=ali", "", token)
+	if status != fiber.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", status, body)
+	}
+	var results []user.SearchResultOutput
+	if err := json.Unmarshal(body, &results); err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Rank != 15 {
+		t.Fatalf("results = %+v, want one result with rank 15", results)
+	}
+}
+
+func TestSearch_RequiresAuth(t *testing.T) {
+	app := newTestApp(t, &fakeService{})
+	status, _ := doRequest(t, app, "GET", "/api/v1/users/search?q=ali", "", "")
+	if status != fiber.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", status)
 	}
 }
 

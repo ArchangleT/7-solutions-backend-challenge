@@ -65,6 +65,13 @@ func (h *apiHandler) ListUsers(c *fiber.Ctx) error {
 	return h.users.List(c)
 }
 
+func (h *apiHandler) SearchUsers(c *fiber.Ctx, _ SearchUsersParams) error {
+	if err := middleware.Authenticate(c, h.tokens); err != nil {
+		return nil
+	}
+	return h.users.Search(c)
+}
+
 func (h *apiHandler) GetUser(c *fiber.Ctx, _ UserID) error {
 	if err := middleware.Authenticate(c, h.tokens); err != nil {
 		return nil

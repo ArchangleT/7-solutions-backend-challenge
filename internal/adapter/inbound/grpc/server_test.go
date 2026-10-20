@@ -45,6 +45,10 @@ func (f *fakeService) List(_ context.Context) ([]user.UserOutput, error) {
 	return nil, f.err
 }
 
+func (f *fakeService) Search(_ context.Context, _ user.SearchUsersInput) ([]user.SearchResultOutput, error) {
+	return nil, f.err
+}
+
 func (f *fakeService) Update(_ context.Context, _ string, _ user.UpdateUserInput) (user.UserOutput, error) {
 	return f.output, f.err
 }
