@@ -11,7 +11,7 @@ Backend Golang coding test at `https://github.com/ArchangleT/7-solutions-backend
 
 ## Tech Stack
 
-- Go 1.26.4, module `github.com/ArchangleT/7-solutions-backend-challenge`
+- Go 1.27.3, module `github.com/ArchangleT/7-solutions-backend-challenge`
 - HTTP: Fiber v2 with oapi-codegen v2 generated server (`fiber-server`)
 - Persistence: MongoDB via the official `go.mongodb.org/mongo-driver/v2`
 - Auth: `golang-jwt/jwt/v5`, HMAC HS256, 24h TTL

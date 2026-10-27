@@ -8,7 +8,7 @@ on:
 
 env:
   APP_NAME: user-management-api
-  GO_VERSION: '1.26.4'
+  GO_VERSION: '1.27.3'
   IMAGE_NAME: ghcr.io/${{ github.repository }}/user-management-api
 
 concurrency:
